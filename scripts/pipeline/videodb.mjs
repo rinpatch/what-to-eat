@@ -82,13 +82,23 @@ export async function createVideoDbAdapter(options = {}) {
     async getTranscript(videoId) {
       const video = requireVideo(videos, videoId);
       const transcript = await withTimeout(
-        callFirstAvailable(video, ["getTranscript", "get_transcript"], [
-          [],
-        ]),
+        callFirstAvailable(video, ["getTranscript", "get_transcript"], [[]]),
         operationTimeoutMs,
         "VideoDB transcript fetch",
       );
       return normalizeTranscript(transcript);
+    },
+
+    async getTranscriptWithTimestamps(videoId) {
+      const video = requireVideo(videos, videoId);
+      const raw = await withTimeout(
+        callFirstAvailable(video, ["getTranscript", "get_transcript"], [[]]),
+        operationTimeoutMs,
+        "VideoDB transcript fetch",
+      );
+      const words = normalizeWordTimestamps(raw);
+      const text = words.map((w) => w.text).filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+      return { text, words };
     },
   };
 }
@@ -116,6 +126,43 @@ export function normalizeTranscript(transcript) {
   return String(transcript?.text || transcript?.transcript || transcript || "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+export function normalizeWordTimestamps(transcript) {
+  const words = Array.isArray(transcript)
+    ? transcript
+    : Array.isArray(transcript?.wordTimestamps)
+      ? transcript.wordTimestamps
+      : Array.isArray(transcript?.segments)
+        ? transcript.segments
+        : [];
+  return words
+    .map((w) => ({
+      start: Number(w.start ?? w.start_time ?? 0),
+      end: Number(w.end ?? w.end_time ?? 0),
+      text: String(w.text || w.word || w.value || "").trim(),
+    }))
+    .filter((w) => w.text && w.text !== "-");
+}
+
+export function findQuoteStart(words, quote) {
+  if (!quote || !words.length) return null;
+  // Build a flat string with character→word-index mapping
+  const chars = [];
+  for (let i = 0; i < words.length; i++) {
+    for (const _ of words[i].text) chars.push(i);
+    chars.push(i); // space
+  }
+  const flat = words.map((w) => w.text).join(" ").toLowerCase();
+  const needle = quote.toLowerCase().replace(/\s+/g, " ").trim();
+  // Try progressively shorter prefixes in case LLM slightly paraphrased the end
+  for (let len = needle.length; len >= Math.min(20, needle.length); len = Math.floor(len * 0.8)) {
+    const idx = flat.indexOf(needle.slice(0, len));
+    if (idx !== -1 && idx < chars.length) {
+      return words[chars[idx]]?.start ?? null;
+    }
+  }
+  return null;
 }
 
 async function withTimeout(promise, timeoutMs, label) {

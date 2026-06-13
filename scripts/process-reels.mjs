@@ -12,7 +12,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { loadDotEnv, pipelineConfig, requireEnv } from "./pipeline/config.mjs";
 import { fetchJson } from "./pipeline/http.mjs";
-import { createVideoDbAdapter } from "./pipeline/videodb.mjs";
+import { createVideoDbAdapter, findQuoteStart } from "./pipeline/videodb.mjs";
 import { processPost } from "./pipeline/videodb-cache.mjs";
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
@@ -157,7 +157,7 @@ async function extractClipMeta(caption, transcript, quoteCandidates = []) {
             '- cuisine: one of: chinese, japanese, korean, local, malay, thai, western\n' +
             '- price_band: one of: cheap (under SGD15), mid (SGD15-40), treat (above SGD40)\n' +
             '- vibe: one of: comfort, date-night, hawker, spicy, supper, sweet\n' +
-            '- pull_quote: a short punchy creator quote (under 100 chars), or null\n' +
+            '- pull_quote: a verbatim short quote from the transcript that describes the food itself (taste, texture, appearance) — under 100 chars, or null if none fits\n' +
             '- sentiment: one of: positive, neutral, negative\n\n' +
             context,
         },
@@ -269,12 +269,15 @@ for (const reel of reels) {
       console.log(`  [${reelId}] videodb: ${evidence.processing_status}${errSummary}`);
     }
 
-    // Always fetch the full transcript from VideoDB; fall back to existing raw_reels value
+    // Always fetch the full transcript with word timestamps from VideoDB
     let transcript = "";
+    let transcriptWords = [];
     if (adapter && evidence.video_id) {
       try {
-        transcript = await adapter.getTranscript(evidence.video_id) || "";
-        console.log(`  [${reelId}] transcript: ${transcript.length} chars`);
+        const result = await adapter.getTranscriptWithTimestamps(evidence.video_id);
+        transcript = result.text || "";
+        transcriptWords = result.words || [];
+        console.log(`  [${reelId}] transcript: ${transcript.length} chars, ${transcriptWords.length} words`);
       } catch (err) {
         console.log(`  [${reelId}] transcript fetch failed: ${err.message}`);
       }
@@ -295,8 +298,14 @@ for (const reel of reels) {
     console.log(
       `  [${reelId}] meta: dish="${meta.dish_name}" cuisine=${meta.tags.cuisine} priceBand=${meta.tags.priceBand} vibe=${meta.tags.vibe} sentiment=${meta.sentiment}`,
     );
-
     // Step 4: Build and insert clip row
+    // Anchor the clip to where the pull quote appears in the transcript
+    const quoteStart = meta.pull_quote ? findQuoteStart(transcriptWords, meta.pull_quote) : null;
+    if (meta.pull_quote) console.log(`  [${reelId}] pull_quote: "${meta.pull_quote}" → clip_start=${quoteStart ?? "not found"}`);
+    const clipStart = quoteStart ?? (bestClip ? bestClip.start : null);
+    const clipDuration = bestClip ? (bestClip.end - bestClip.start) : 18;
+    const clipEnd = clipStart != null ? clipStart + clipDuration : (bestClip ? bestClip.end : null);
+
     const clipRow = {
       reel_id: reelId,
       place_id: reel.place_id || null,
@@ -304,8 +313,8 @@ for (const reel of reels) {
       price: meta.price,
       video_url: reel.video_url,
       stream_url: evidence.stream_url || null,
-      clip_start: bestClip ? Math.round(bestClip.start) : null,
-      clip_end: bestClip ? Math.round(bestClip.end) : null,
+      clip_start: clipStart != null ? Math.round(clipStart) : null,
+      clip_end: clipEnd != null ? Math.round(clipEnd) : null,
       transcript: transcript || null,
       influencer: reel.creator_handle || "",
       posted_at: reel.posted_at,
