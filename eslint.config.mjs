@@ -4,7 +4,14 @@ import nextTs from "eslint-config-next/typescript";
 
 const eslintConfig = defineConfig([
   {
-    ignores: [".next/**", "out/**", "build/**", "next-env.d.ts"],
+    ignores: [
+      ".agents/**",
+      ".impeccable/**",
+      ".next/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+    ],
   },
   ...nextVitals,
   ...nextTs,
@@ -12,6 +19,8 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    ".agents/**",
+    ".impeccable/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

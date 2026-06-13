@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-13T14:19:47+08:00",
+  "title": "Design System: What To Eat Ah",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Charred Ink",
+        "canonical": "#16130f",
+        "tonalRamp": ["oklch(18% 0.02 65)", "oklch(28% 0.02 65)", "oklch(38% 0.02 65)", "oklch(48% 0.02 65)", "oklch(58% 0.02 65)", "oklch(70% 0.02 65)", "oklch(84% 0.02 65)", "oklch(95% 0.02 65)"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Makan Paper",
+        "canonical": "#f3ead9",
+        "tonalRamp": ["oklch(22% 0.025 78)", "oklch(34% 0.025 78)", "oklch(46% 0.025 78)", "oklch(58% 0.025 78)", "oklch(70% 0.025 78)", "oklch(82% 0.025 78)", "oklch(91% 0.025 78)", "oklch(96% 0.025 78)"]
+      },
+      "chilli": {
+        "role": "primary",
+        "displayName": "Chilli Action",
+        "canonical": "#e3452b",
+        "tonalRamp": ["oklch(22% 0.12 35)", "oklch(32% 0.14 35)", "oklch(42% 0.16 35)", "oklch(52% 0.18 35)", "oklch(62% 0.18 35)", "oklch(72% 0.14 35)", "oklch(84% 0.09 35)", "oklch(95% 0.04 35)"]
+      },
+      "pandan": {
+        "role": "secondary",
+        "displayName": "Pandan Confirmation",
+        "canonical": "#1f7a4d",
+        "tonalRamp": ["oklch(20% 0.08 155)", "oklch(30% 0.1 155)", "oklch(40% 0.11 155)", "oklch(50% 0.12 155)", "oklch(60% 0.11 155)", "oklch(72% 0.09 155)", "oklch(84% 0.06 155)", "oklch(94% 0.03 155)"]
+      },
+      "gold": {
+        "role": "tertiary",
+        "displayName": "Kopi Gold",
+        "canonical": "#e8a317",
+        "tonalRamp": ["oklch(24% 0.08 80)", "oklch(34% 0.1 80)", "oklch(46% 0.12 80)", "oklch(58% 0.14 80)", "oklch(70% 0.13 80)", "oklch(80% 0.1 80)", "oklch(89% 0.07 80)", "oklch(96% 0.03 80)"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Brand Display",
+        "purpose": "Compact brand mark only."
+      },
+      "headline": {
+        "displayName": "Dish Headline",
+        "purpose": "Large overlay titles on active swipe cards."
+      },
+      "body": {
+        "displayName": "Dense Reading",
+        "purpose": "Details, creator quotes, venue metadata, and supporting copy."
+      },
+      "label": {
+        "displayName": "Utility Label",
+        "purpose": "Filter labels, preference bars, small control text."
+      }
+    },
+    "shadows": [
+      {
+        "name": "swipe-lift",
+        "value": "0 18px 40px -12px rgba(40, 25, 10, 0.45)",
+        "purpose": "Top swipe card only."
+      },
+      {
+        "name": "action-lift",
+        "value": "0 6px 16px -4px rgba(40, 25, 10, 0.4)",
+        "purpose": "Circular action buttons."
+      },
+      {
+        "name": "sheet-lift",
+        "value": "0 -18px 48px rgba(0, 0, 0, 0.2)",
+        "purpose": "Shortlist drawer."
+      }
+    ],
+    "motion": [
+      {
+        "name": "fast-state",
+        "value": "120ms ease",
+        "purpose": "Button press and compact state feedback."
+      },
+      {
+        "name": "swipe-settle",
+        "value": "170ms ease",
+        "purpose": "Swipe-card transform settling."
+      },
+      {
+        "name": "drawer-shift",
+        "value": "180ms ease",
+        "purpose": "Shortlist sheet entrance."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow-phone",
+        "value": "374px"
+      },
+      {
+        "name": "desktop-stage",
+        "value": "760px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Save Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Large circular save/yum action in the bottom rail.",
+      "html": "<button class=\"ds-btn-primary\" aria-label=\"Save\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M20.8 4.6c-1.6-1.7-4.2-1.7-5.8 0L12 7.6 9 4.6c-1.6-1.7-4.2-1.7-5.8 0-1.7 1.8-1.7 4.6 0 6.3L12 20l8.8-9.1c1.7-1.7 1.7-4.5 0-6.3Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button>",
+      "css": ".ds-btn-primary { align-items: center; background: #e3452b; border: 0; border-radius: 999px; box-shadow: 0 6px 16px -4px rgba(40,25,10,.4); color: #fff; display: inline-flex; height: 74px; justify-content: center; transition: transform 120ms ease; width: 74px; } .ds-btn-primary:hover { transform: translateY(-1px); } .ds-btn-primary:active { transform: scale(.9); } .ds-btn-primary:focus-visible { outline: 3px solid #e8a317; outline-offset: 3px; } .ds-btn-primary svg { height: 25px; width: 25px; }"
+    },
+    {
+      "name": "Secondary Round Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Quiet circular rail action for undo, details, and secondary decisions.",
+      "html": "<button class=\"ds-btn-round\" aria-label=\"Undo\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 7v6h6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M21 17a9 9 0 0 0-15-6.7L3 13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button>",
+      "css": ".ds-btn-round { align-items: center; background: #e8dcc4; border: 0; border-radius: 999px; box-shadow: 0 6px 16px -4px rgba(40,25,10,.4); color: #16130f; display: inline-flex; height: 62px; justify-content: center; transition: transform 120ms ease; width: 62px; } .ds-btn-round:hover { background: #fff8eb; } .ds-btn-round:active { transform: scale(.9); } .ds-btn-round:focus-visible { outline: 3px solid #1f7a4d; outline-offset: 3px; } .ds-btn-round svg { height: 22px; width: 22px; }"
+    },
+    {
+      "name": "Distance Filter",
+      "kind": "input",
+      "refersTo": "filter-bar",
+      "description": "Compact distance control above the deck.",
+      "html": "<label class=\"ds-filter\"><span>How far you willing</span><strong>30 min</strong><input type=\"range\" min=\"5\" max=\"45\" step=\"5\" value=\"30\" /></label>",
+      "css": ".ds-filter { background: #e8dcc4; border: 1.5px solid #d8c9aa; border-radius: 16px; color: #16130f; display: grid; gap: 8px; padding: 12px 14px 14px; width: 320px; } .ds-filter span, .ds-filter strong { font-family: Archivo, Arial, Helvetica, sans-serif; font-size: .75rem; font-weight: 900; text-transform: uppercase; } .ds-filter strong { color: #b8301c; justify-self: end; margin-top: -22px; } .ds-filter input { accent-color: #1f7a4d; width: 100%; } .ds-filter:focus-within { outline: 3px solid rgba(31,122,77,.28); }"
+    },
+    {
+      "name": "Swipe Card",
+      "kind": "card",
+      "refersTo": "swipe-card",
+      "description": "Video-led decision card with overlay metadata.",
+      "html": "<article class=\"ds-swipe-card\"><div class=\"ds-card-media\"></div><div class=\"ds-card-copy\"><span>3 creators · 12 min</span><h2>Nasi Lemak Burger</h2><p>Crackly sambal crunch, queue worth it.</p></div></article>",
+      "css": ".ds-swipe-card { aspect-ratio: 3 / 5; background: #0d0c0b; border-radius: 24px; box-shadow: 0 18px 40px -12px rgba(40,25,10,.45); color: #fff; display: flex; flex-direction: column; justify-content: end; overflow: hidden; padding: 18px; position: relative; width: 320px; } .ds-card-media { background: linear-gradient(145deg, #1f7a4d, #e3452b); inset: 0; position: absolute; } .ds-card-media::after { background: linear-gradient(180deg, transparent 35%, rgba(0,0,0,.84)); content: \"\"; inset: 0; position: absolute; } .ds-card-copy { position: relative; z-index: 1; } .ds-card-copy span { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); border-radius: 999px; display: inline-flex; font-family: Archivo, Arial, Helvetica, sans-serif; font-size: .72rem; font-weight: 900; margin-bottom: 12px; padding: 6px 11px; } .ds-card-copy h2 { font-family: Archivo, Arial, Helvetica, sans-serif; font-size: 2.4rem; font-weight: 900; letter-spacing: 0; line-height: .98; margin: 0; } .ds-card-copy p { font-size: .9rem; font-style: italic; font-weight: 700; line-height: 1.34; margin: 12px 0 0; max-width: 27ch; }"
+    },
+    {
+      "name": "Saved Card",
+      "kind": "card",
+      "refersTo": "saved-card",
+      "description": "Shortlist item with thumbnail, food/place text, and map action.",
+      "html": "<article class=\"ds-saved-card\"><div class=\"ds-thumb\"></div><div><h3>Chicken Rice</h3><p>Maxwell Food Centre</p><span>12 min · 4.6 stars</span></div><a href=\"#\" aria-label=\"Open in Maps\">⌖</a></article>",
+      "css": ".ds-saved-card { align-items: center; background: #fff8eb; border: 1px solid #d8c9aa; border-radius: 12px; color: #16130f; display: grid; gap: 12px; grid-template-columns: 72px minmax(0,1fr) 38px; padding: 8px; width: 360px; } .ds-thumb { aspect-ratio: 1; background: linear-gradient(145deg, #e8a317, #e3452b); border-radius: 10px; height: 72px; width: 72px; } .ds-saved-card h3 { font-family: Archivo, Arial, Helvetica, sans-serif; font-size: 1rem; font-weight: 900; line-height: 1.05; margin: 0 0 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-saved-card p, .ds-saved-card span { color: #6b6052; display: block; font-size: .78rem; font-weight: 800; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-saved-card a { align-items: center; background: rgba(31,122,77,.12); border-radius: 10px; color: #1f7a4d; display: inline-flex; height: 38px; justify-content: center; text-decoration: none; width: 38px; } .ds-saved-card a:focus-visible { outline: 3px solid #e8a317; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Hawker Deck in Hand",
+    "overview": "The visual system should feel like a compact food card stack someone can operate with one thumb while deciding dinner. It borrows the warmth and immediacy of hawker signage without becoming decorative: thick display type, chilli red action energy, pandan green confirmation, and tactile paper-toned controls around a dark video-forward card.\n\nThis is product UI, so trust comes from consistency and speed. The deck owns the screen, the action rail stays familiar, and details are available inside the card without breaking the swipe loop. The brand is local and lively, but the surface should still feel shippable on Vercel and reliable enough for a real recommendation flow.",
+    "keyCharacteristics": [
+      "Mobile-first 360px phone-stage layout with a 3:5 swipe deck.",
+      "High-contrast video cards with paper-toned controls and strong action color.",
+      "Dense but legible food metadata, optimized for glance decisions.",
+      "Casual local copy used sparingly in labels, not as visual clutter."
+    ],
+    "rules": [
+      {
+        "name": "The Food First Rule",
+        "body": "Color frames the decision loop; it must not compete with the food clip itself.",
+        "section": "colors"
+      },
+      {
+        "name": "The Three-Signal Rule",
+        "body": "Red means appetite/primary action, green means saved/positive, gold means editorial highlight. Do not swap these roles.",
+        "section": "colors"
+      },
+      {
+        "name": "The Deck Title Rule",
+        "body": "Large typography belongs on the dish name only; controls, labels, and metadata stay compact.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Big Shadow Rule",
+        "body": "Only the active swipe card gets the dramatic shadow. Repeated list items and panels use color layers, not stacked drop shadows.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep the first viewport focused on the active swipe deck and thumb actions.",
+      "Do use Chilli Action, Pandan Confirmation, and Kopi Gold in their assigned roles.",
+      "Do omit nullable quote, price, and rating fields cleanly when they are missing.",
+      "Do keep touch targets at least 42px, with primary swipe action larger than secondary actions.",
+      "Do preserve button fallbacks for every gesture."
+    ],
+    "donts": [
+      "Don't turn the app into a marketing landing page, admin console, or decorative restaurant directory.",
+      "Don't use generic delivery-app UI, beige foodie-blog editorial styling, dark purple SaaS gradients, influencer marketplace dashboards, or a full TikTok clone.",
+      "Don't add side-stripe borders, gradient text, glassmorphism, or repeated identical card grids.",
+      "Don't let decorative motion delay the swipe loop.",
+      "Don't make empty boxes for missing data."
+    ]
+  }
+}
