@@ -16,6 +16,9 @@ export async function createVideoDbAdapter(options = {}) {
   const apiKey = options.apiKey || requireEnv("VIDEODB_API_KEY");
   const config = pipelineConfig();
   const collectionId = options.collectionId || config.videoDb.collectionId || "default";
+  const operationTimeoutMs = Number(
+    options.operationTimeoutMs || process.env.VIDEODB_OPERATION_TIMEOUT_MS || 120000,
+  );
   let connect;
   try {
     ({ connect } = await import("videodb"));
@@ -27,9 +30,9 @@ export async function createVideoDbAdapter(options = {}) {
 
   return {
     async uploadVideo(url, { name = "" } = {}) {
-      const video = await uploadUrl(conn, collectionId, url);
-      await updateName(video, name);
-      const streamUrl = await generateStream(video);
+      const video = await withTimeout(uploadUrl(conn, collectionId, url), operationTimeoutMs, "VideoDB upload");
+      await withTimeout(updateName(video, name), operationTimeoutMs, "VideoDB metadata update");
+      const streamUrl = await withTimeout(generateStream(video), operationTimeoutMs, "VideoDB stream generation");
       const id = String(video.id || video.videoId || video._id || stableId(url));
       videos.set(id, video);
       return { id, name: name || id, url, streamUrl };
@@ -37,35 +40,97 @@ export async function createVideoDbAdapter(options = {}) {
 
     async indexFoodAudio(videoId) {
       const video = requireVideo(videos, videoId);
-      await callFirstAvailable(video, ["indexSpokenWords", "indexAudio", "index_spoken_words", "index_audio"], [
-        [{ prompt: FOOD_AUDIO_PROMPT }],
-        [FOOD_AUDIO_PROMPT],
-        [],
-      ]);
+      await withTimeout(
+        callFirstAvailable(video, ["indexSpokenWords", "indexAudio", "index_spoken_words", "index_audio"], [
+          [],
+        ]),
+        operationTimeoutMs,
+        "VideoDB audio index",
+      );
     },
 
     async indexFoodVisuals(videoId) {
       const video = requireVideo(videos, videoId);
-      await callFirstAvailable(video, ["indexVisuals", "index_visuals", "indexScenes", "index_scenes"], [
-        [{ prompt: FOOD_VISUAL_PROMPT }],
-        [FOOD_VISUAL_PROMPT],
-        [],
-      ]);
+      await withTimeout(
+        callFirstAvailable(video, ["indexVisuals", "index_visuals", "indexScenes", "index_scenes"], [
+          [{ prompt: FOOD_VISUAL_PROMPT }],
+          [FOOD_VISUAL_PROMPT],
+          [],
+        ]),
+        operationTimeoutMs,
+        "VideoDB visual index",
+      );
     },
 
     async searchFoodMoments(videoId) {
       const video = requireVideo(videos, videoId);
-      const transcript = await searchVideo(video, FOOD_REACTION_QUERY, "spoken_word");
+      const transcript = await withTimeout(
+        searchVideo(video, FOOD_REACTION_QUERY, "spoken_word"),
+        operationTimeoutMs,
+        "VideoDB transcript search",
+      );
       const visual = [
-        ...(await searchVideo(video, FOOD_VISUAL_QUERY, "scene")),
-        ...(await searchVideo(video, FOOD_PLACE_QUERY, "scene")),
+        ...(await withTimeout(searchVideo(video, FOOD_VISUAL_QUERY, "scene"), operationTimeoutMs, "VideoDB visual search")),
+        ...(await withTimeout(searchVideo(video, FOOD_PLACE_QUERY, "scene"), operationTimeoutMs, "VideoDB place search")),
       ];
       return {
         transcriptSnippets: dedupeShots(transcript),
         visualSnippets: dedupeShots(visual),
       };
     },
+
+    async getTranscript(videoId) {
+      const video = requireVideo(videos, videoId);
+      const transcript = await withTimeout(
+        callFirstAvailable(video, ["getTranscript", "get_transcript"], [
+          [],
+        ]),
+        operationTimeoutMs,
+        "VideoDB transcript fetch",
+      );
+      return normalizeTranscript(transcript);
+    },
   };
+}
+
+export function normalizeTranscript(transcript) {
+  const rawSegments = Array.isArray(transcript)
+    ? transcript
+    : Array.isArray(transcript?.wordTimestamps)
+      ? transcript.wordTimestamps
+      : Array.isArray(transcript?.segments)
+        ? transcript.segments
+        : Array.isArray(transcript?.data)
+          ? transcript.data
+          : [];
+
+  if (rawSegments.length) {
+    return rawSegments
+      .map((segment) => String(segment?.text || segment?.word || segment?.value || "").trim())
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  return String(transcript?.text || transcript?.transcript || transcript || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function withTimeout(promise, timeoutMs, label) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return promise;
+  let timeout;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function uploadUrl(conn, collectionId, url) {

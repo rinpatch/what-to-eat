@@ -51,6 +51,24 @@ Supabase fetch into the VideoDB cache contract, still without VideoDB calls:
 npm run smoke:supabase-videodb
 ```
 
+Dry-run Supabase write-back from cached VideoDB evidence:
+
+```bash
+npm run supabase:videodb -- --input=data/videodb_evidence.json --limit=5
+```
+
+Write live VideoDB transcripts/errors back to `raw_reels.transcript` and `raw_reels.processing_error`:
+
+```bash
+npm run supabase:videodb -- --input=data/videodb_evidence.json --write
+```
+
+Or generate the transcript directly from Supabase `raw_reels.video_url` via the Python VideoDB SDK:
+
+```bash
+npm run supabase:videodb-transcripts -- --limit=1 --write
+```
+
 Live cache from normalized Bright Data reels in `data/pipeline-db.json`:
 
 ```bash

@@ -4,7 +4,12 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 
-import { rawReelsToVideoDbPosts } from "../scripts/pipeline/supabase-rest.mjs";
+import {
+  rawReelsToVideoDbPosts,
+  transcriptFromVideoDbEvidence,
+  videoDbEvidenceToRawReelPatch,
+} from "../scripts/pipeline/supabase-rest.mjs";
+import { normalizeTranscript } from "../scripts/pipeline/videodb.mjs";
 
 import {
   COMPLETE,
@@ -173,4 +178,54 @@ test("raw Supabase reels map into VideoDB seed posts", () => {
   assert.equal(rows[0].video_url, "https://cdn.example/reel.mp4");
   assert.equal(rows[0].creator_handle, "@tester");
   assert.deepEqual(rows[0].engagement, { likes: 1, comments: 2, shares: 3, views: 4 });
+});
+
+test("VideoDB evidence maps only to safe raw_reels Supabase columns", () => {
+  const evidence = {
+    post_id: "reel-1",
+    processing_status: "partial",
+    transcript_snippets: [
+      { text: "  first bite is crispy  " },
+      { text: "worth the queue" },
+    ],
+    errors: ["visual index failed"],
+  };
+
+  assert.equal(transcriptFromVideoDbEvidence(evidence), "first bite is crispy worth the queue");
+  assert.deepEqual(videoDbEvidenceToRawReelPatch(evidence), {
+    reel_id: "reel-1",
+    patch: {
+      transcript: "first bite is crispy worth the queue",
+      processing_error: "VideoDB partial: visual index failed",
+    },
+  });
+});
+
+test("VideoDB write-back can optionally mark raw_reels processed", () => {
+  const evidence = {
+    post_id: "reel-1",
+    processing_status: "complete",
+    tokenrouter_input: { spoken_text: "best noodles near school" },
+    errors: [],
+  };
+
+  assert.deepEqual(videoDbEvidenceToRawReelPatch(evidence, { markProcessed: true }), {
+    reel_id: "reel-1",
+    patch: {
+      transcript: "best noodles near school",
+      processing_error: null,
+      processed: true,
+    },
+  });
+});
+
+test("VideoDB transcript responses normalize into raw transcript text", () => {
+  assert.equal(
+    normalizeTranscript({ wordTimestamps: [{ word: "best" }, { word: "noodles" }] }),
+    "best noodles",
+  );
+  assert.equal(
+    normalizeTranscript({ segments: [{ text: "crispy bite" }, { text: "worth it" }] }),
+    "crispy bite worth it",
+  );
 });
