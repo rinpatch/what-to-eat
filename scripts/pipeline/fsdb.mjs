@@ -10,6 +10,10 @@ export const paths = {
   jobs: join(repoRoot, "data", "brightdata_jobs.json"),
   pipelineDb: join(repoRoot, "data", "pipeline-db.json"),
   recommendations: join(repoRoot, "data", "recommendations.json"),
+  seedPosts: join(repoRoot, "data", "seed_posts.json"),
+  seedPostsExample: join(repoRoot, "data", "seed_posts.example.json"),
+  videoDbEvidence: join(repoRoot, "data", "videodb_evidence.json"),
+  videoDbSupabaseSmoke: join(repoRoot, "data", "videodb_evidence.supabase-smoke.json"),
 };
 
 export function emptyPipelineDb() {
@@ -20,6 +24,7 @@ export function emptyPipelineDb() {
     structured: {},
     places: {},
     recommendations: [],
+    videoDbEvidence: {},
   };
 }
 

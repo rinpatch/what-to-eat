@@ -1,4 +1,4 @@
-import { pipelineConfig, requireEnv } from "./config.mjs";
+import { pipelineConfig, requireAnyEnv } from "./config.mjs";
 import { fetchJson } from "./http.mjs";
 import {
   isLikelyVideoPost,
@@ -21,7 +21,7 @@ export function extractSnapshotId(response) {
 
 export async function triggerInstagramDiscovery(creator) {
   const config = pipelineConfig();
-  const token = requireEnv("BRIGHTDATA_API_TOKEN");
+  const token = requireAnyEnv(["BRIGHTDATA_API_TOKEN", "BRIGHT_DATA_API_KEY"]);
   const url = new URL(`${config.brightData.baseUrl}/scrape`);
   url.searchParams.set("dataset_id", config.brightData.datasetId);
   url.searchParams.set("notify", "false");
@@ -87,7 +87,7 @@ export async function triggerInstagramDiscovery(creator) {
 
 export async function fetchSnapshotProgress(snapshotId) {
   const config = pipelineConfig();
-  const token = requireEnv("BRIGHTDATA_API_TOKEN");
+  const token = requireAnyEnv(["BRIGHTDATA_API_TOKEN", "BRIGHT_DATA_API_KEY"]);
   return fetchJson(`${config.brightData.baseUrl}/progress/${snapshotId}`, {
     headers: { Authorization: `Bearer ${token}` },
     retries: 0,
@@ -96,7 +96,7 @@ export async function fetchSnapshotProgress(snapshotId) {
 
 export async function downloadSnapshot(snapshotId) {
   const config = pipelineConfig();
-  const token = requireEnv("BRIGHTDATA_API_TOKEN");
+  const token = requireAnyEnv(["BRIGHTDATA_API_TOKEN", "BRIGHT_DATA_API_KEY"]);
   const url = new URL(`${config.brightData.baseUrl}/snapshot/${snapshotId}`);
   url.searchParams.set("format", "json");
   return fetchJson(url, {

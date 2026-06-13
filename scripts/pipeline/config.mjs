@@ -33,6 +33,15 @@ export function requireEnv(name) {
   return value;
 }
 
+export function requireAnyEnv(names) {
+  loadDotEnv();
+  for (const name of names) {
+    const value = process.env[name];
+    if (value) return value;
+  }
+  throw new Error(`Missing one of ${names.join(", ")}. Add it to .env or .env.local first.`);
+}
+
 export function optionalNumber(name) {
   loadDotEnv();
   const value = process.env[name];
@@ -45,7 +54,7 @@ export function pipelineConfig() {
   loadDotEnv();
   return {
     brightData: {
-      apiToken: process.env.BRIGHTDATA_API_TOKEN || "",
+      apiToken: process.env.BRIGHTDATA_API_TOKEN || process.env.BRIGHT_DATA_API_KEY || "",
       datasetId: process.env.BRIGHTDATA_DATASET_ID || "gd_lyclm20il4r5helnj",
       baseUrl: "https://api.brightdata.com/datasets/v3",
     },
@@ -53,12 +62,12 @@ export function pipelineConfig() {
       collectionId: process.env.VIDEODB_COLLECTION_ID || "default",
     },
     kimi: {
-      apiKey: process.env.KIMI_API_KEY || "",
+      apiKey: process.env.KIMI_API_KEY || process.env.TOKEN_ROUTER_API_KEY || "",
       baseUrl: process.env.KIMI_BASE_URL || "https://api.moonshot.ai/v1",
       model: process.env.KIMI_MODEL || "kimi-k2.7-code",
     },
     maps: {
-      apiKey: process.env.GOOGLE_MAPS_API_KEY || "",
+      apiKey: process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY || "",
       region: process.env.GOOGLE_MAPS_REGION || "",
       userLat: optionalNumber("USER_LAT"),
       userLng: optionalNumber("USER_LNG"),

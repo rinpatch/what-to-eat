@@ -1,0 +1,28 @@
+[
+  {
+    "post_id": "demo-sg-food-001",
+    "video_url": "https://example.com/videos/chilli-crab-demo.mp4",
+    "caption": "Trying this chilli crab stall after seeing the queue. Worth it and super spicy.",
+    "creator_handle": "@sgfoodfinder",
+    "posted_at": "2026-06-13T10:00:00+08:00",
+    "engagement": {
+      "likes": 1840,
+      "comments": 96,
+      "views": 42000
+    },
+    "source_url": "https://example.com/posts/demo-sg-food-001"
+  },
+  {
+    "post_id": "demo-sg-food-002",
+    "video_url": "https://example.com/videos/korean-stew-demo.mp4",
+    "caption": "Cheap Korean stew near school, crispy pancake on the side, no long queue.",
+    "creator_handle": "@makanquick",
+    "posted_at": "2026-06-13T11:30:00+08:00",
+    "engagement": {
+      "likes": 980,
+      "comments": 44,
+      "views": 21000
+    },
+    "source_url": "https://example.com/posts/demo-sg-food-002"
+  }
+]

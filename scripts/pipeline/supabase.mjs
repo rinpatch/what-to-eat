@@ -94,3 +94,62 @@ export async function upsertReels(reels) {
 
   return { upserted: rows.length, skipped };
 }
+
+
+export function rawReelsToVideoDbPosts(rawReels, creatorsById = {}) {
+  return rawReels
+    .filter((row) => row?.video_url || row?.url)
+    .map((row) => {
+      const handle = creatorsById[row.creator_id] || row.creator_handle || row.creatorUsername || "";
+      const normalizedHandle = handle ? (String(handle).startsWith("@") ? String(handle) : "@" + handle) : "";
+      return {
+        post_id: row.reel_id,
+        video_url: row.video_url || row.url,
+        caption: row.caption || "",
+        creator_handle: normalizedHandle,
+        posted_at: row.posted_at || null,
+        engagement: {
+          likes: row.likes ?? 0,
+          comments: row.comments ?? 0,
+          shares: row.shares ?? 0,
+          views: row.views ?? 0,
+        },
+        source_url: row.url || row.video_url || "",
+      };
+    });
+}
+
+export async function fetchRawReelsForVideoDb({ limit = 5, includeProcessed = false } = {}) {
+  let query = client()
+    .from("raw_reels")
+    .select("reel_id, creator_id, url, video_url, caption, likes, comments, shares, views, posted_at, processed")
+    .not("video_url", "is", null)
+    .order("posted_at", { ascending: false })
+    .limit(limit);
+
+  if (!includeProcessed) query = query.eq("processed", false);
+
+  let { data, error } = await query;
+  if (error) throw new Error("Failed to fetch raw_reels: " + error.message);
+
+  if (!data?.length && !includeProcessed) {
+    const fallback = await client()
+      .from("raw_reels")
+      .select("reel_id, creator_id, url, video_url, caption, likes, comments, shares, views, posted_at, processed")
+      .not("video_url", "is", null)
+      .order("posted_at", { ascending: false })
+      .limit(limit);
+    if (fallback.error) throw new Error("Failed to fetch raw_reels fallback: " + fallback.error.message);
+    data = fallback.data || [];
+  }
+
+  const creatorIds = [...new Set((data || []).map((row) => row.creator_id).filter(Boolean))];
+  let creatorsById = {};
+  if (creatorIds.length) {
+    const creators = await client().from("creators").select("id, handle").in("id", creatorIds);
+    if (creators.error) throw new Error("Failed to fetch creators: " + creators.error.message);
+    creatorsById = Object.fromEntries((creators.data || []).map((row) => [row.id, row.handle]));
+  }
+
+  return rawReelsToVideoDbPosts(data || [], creatorsById);
+}
