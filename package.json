@@ -6,13 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --ignore-pattern '.next/**' --ignore-pattern 'next-env.d.ts'",
+    "lint": "eslint",
     "test": "node --test",
     "videodb:cache": "node scripts/build-videodb-cache.mjs",
     "videodb:demo": "node scripts/build-videodb-cache.mjs --demo --input=data/seed_posts.example.json --output=data/videodb_evidence.demo.json",
-    "smoke:supabase-videodb": "node scripts/smoke-supabase-videodb.mjs --demo --limit=1",
-    "supabase:videodb": "node scripts/update-supabase-videodb-evidence.mjs",
-    "supabase:videodb-transcripts": "PYTHONPATH=/private/tmp/videodb-python-sdk python3 scripts/update_supabase_videodb_transcripts.py"
+    "smoke:supabase-videodb": "node scripts/smoke-supabase-videodb.mjs --demo --limit=1"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

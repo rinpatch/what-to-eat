@@ -16,9 +16,6 @@ export async function createVideoDbAdapter(options = {}) {
   const apiKey = options.apiKey || requireEnv("VIDEODB_API_KEY");
   const config = pipelineConfig();
   const collectionId = options.collectionId || config.videoDb.collectionId || "default";
-  const operationTimeoutMs = Number(
-    options.operationTimeoutMs || process.env.VIDEODB_OPERATION_TIMEOUT_MS || 120000,
-  );
   let connect;
   try {
     ({ connect } = await import("videodb"));
@@ -30,9 +27,9 @@ export async function createVideoDbAdapter(options = {}) {
 
   return {
     async uploadVideo(url, { name = "" } = {}) {
-      const video = await withTimeout(uploadUrl(conn, collectionId, url), operationTimeoutMs, "VideoDB upload");
-      await withTimeout(updateName(video, name), operationTimeoutMs, "VideoDB metadata update");
-      const streamUrl = await withTimeout(generateStream(video), operationTimeoutMs, "VideoDB stream generation");
+      const video = await uploadUrl(conn, collectionId, url);
+      await updateName(video, name);
+      const streamUrl = await generateStream(video);
       const id = String(video.id || video.videoId || video._id || stableId(url));
       videos.set(id, video);
       return { id, name: name || id, url, streamUrl };
@@ -40,144 +37,35 @@ export async function createVideoDbAdapter(options = {}) {
 
     async indexFoodAudio(videoId) {
       const video = requireVideo(videos, videoId);
-      await withTimeout(
-        callFirstAvailable(video, ["indexSpokenWords", "indexAudio", "index_spoken_words", "index_audio"], [
-          [],
-        ]),
-        operationTimeoutMs,
-        "VideoDB audio index",
-      );
+      await callFirstAvailable(video, ["indexSpokenWords", "indexAudio", "index_spoken_words", "index_audio"], [
+        [{ prompt: FOOD_AUDIO_PROMPT }],
+        [FOOD_AUDIO_PROMPT],
+        [],
+      ]);
     },
 
     async indexFoodVisuals(videoId) {
       const video = requireVideo(videos, videoId);
-      await withTimeout(
-        callFirstAvailable(video, ["indexVisuals", "index_visuals", "indexScenes", "index_scenes"], [
-          [{ prompt: FOOD_VISUAL_PROMPT }],
-          [FOOD_VISUAL_PROMPT],
-          [],
-        ]),
-        operationTimeoutMs,
-        "VideoDB visual index",
-      );
+      await callFirstAvailable(video, ["indexVisuals", "index_visuals", "indexScenes", "index_scenes"], [
+        [{ prompt: FOOD_VISUAL_PROMPT }],
+        [FOOD_VISUAL_PROMPT],
+        [],
+      ]);
     },
 
     async searchFoodMoments(videoId) {
       const video = requireVideo(videos, videoId);
-      const transcript = await withTimeout(
-        searchVideo(video, FOOD_REACTION_QUERY, "spoken_word"),
-        operationTimeoutMs,
-        "VideoDB transcript search",
-      );
+      const transcript = await searchVideo(video, FOOD_REACTION_QUERY, "spoken_word");
       const visual = [
-        ...(await withTimeout(searchVideo(video, FOOD_VISUAL_QUERY, "scene"), operationTimeoutMs, "VideoDB visual search")),
-        ...(await withTimeout(searchVideo(video, FOOD_PLACE_QUERY, "scene"), operationTimeoutMs, "VideoDB place search")),
+        ...(await searchVideo(video, FOOD_VISUAL_QUERY, "scene")),
+        ...(await searchVideo(video, FOOD_PLACE_QUERY, "scene")),
       ];
       return {
         transcriptSnippets: dedupeShots(transcript),
         visualSnippets: dedupeShots(visual),
       };
     },
-
-    async getTranscript(videoId) {
-      const video = requireVideo(videos, videoId);
-      const transcript = await withTimeout(
-        callFirstAvailable(video, ["getTranscript", "get_transcript"], [[]]),
-        operationTimeoutMs,
-        "VideoDB transcript fetch",
-      );
-      return normalizeTranscript(transcript);
-    },
-
-    async getTranscriptWithTimestamps(videoId) {
-      const video = requireVideo(videos, videoId);
-      const raw = await withTimeout(
-        callFirstAvailable(video, ["getTranscript", "get_transcript"], [[]]),
-        operationTimeoutMs,
-        "VideoDB transcript fetch",
-      );
-      const words = normalizeWordTimestamps(raw);
-      const text = words.map((w) => w.text).filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-      return { text, words };
-    },
   };
-}
-
-export function normalizeTranscript(transcript) {
-  const rawSegments = Array.isArray(transcript)
-    ? transcript
-    : Array.isArray(transcript?.wordTimestamps)
-      ? transcript.wordTimestamps
-      : Array.isArray(transcript?.segments)
-        ? transcript.segments
-        : Array.isArray(transcript?.data)
-          ? transcript.data
-          : [];
-
-  if (rawSegments.length) {
-    return rawSegments
-      .map((segment) => String(segment?.text || segment?.word || segment?.value || "").trim())
-      .filter(Boolean)
-      .join(" ")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
-
-  return String(transcript?.text || transcript?.transcript || transcript || "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-export function normalizeWordTimestamps(transcript) {
-  const words = Array.isArray(transcript)
-    ? transcript
-    : Array.isArray(transcript?.wordTimestamps)
-      ? transcript.wordTimestamps
-      : Array.isArray(transcript?.segments)
-        ? transcript.segments
-        : [];
-  return words
-    .map((w) => ({
-      start: Number(w.start ?? w.start_time ?? 0),
-      end: Number(w.end ?? w.end_time ?? 0),
-      text: String(w.text || w.word || w.value || "").trim(),
-    }))
-    .filter((w) => w.text && w.text !== "-");
-}
-
-export function findQuoteStart(words, quote) {
-  if (!quote || !words.length) return null;
-  // Build a flat string with character→word-index mapping
-  const chars = [];
-  for (let i = 0; i < words.length; i++) {
-    for (const _ of words[i].text) chars.push(i);
-    chars.push(i); // space
-  }
-  const flat = words.map((w) => w.text).join(" ").toLowerCase();
-  const needle = quote.toLowerCase().replace(/\s+/g, " ").trim();
-  // Try progressively shorter prefixes in case LLM slightly paraphrased the end
-  for (let len = needle.length; len >= Math.min(20, needle.length); len = Math.floor(len * 0.8)) {
-    const idx = flat.indexOf(needle.slice(0, len));
-    if (idx !== -1 && idx < chars.length) {
-      return words[chars[idx]]?.start ?? null;
-    }
-  }
-  return null;
-}
-
-async function withTimeout(promise, timeoutMs, label) {
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return promise;
-  let timeout;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise((_, reject) => {
-        timeout = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
-      }),
-    ]);
-  } finally {
-    clearTimeout(timeout);
-  }
 }
 
 async function uploadUrl(conn, collectionId, url) {

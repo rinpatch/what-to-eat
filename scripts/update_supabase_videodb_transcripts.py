@@ -5,6 +5,7 @@ import os
 import signal
 import sys
 import urllib.parse
+import urllib.request
 from pathlib import Path
 
 
@@ -37,30 +38,30 @@ def required_env(name):
 
 
 def supabase_request(method, table, query=None, body=None):
-    try:
-        import requests
-    except ImportError as error:
-        raise RuntimeError(
-            "Missing requests. Run with: PYTHONPATH=/private/tmp/videodb-python-sdk python3 scripts/update_supabase_videodb_transcripts.py"
-        ) from error
-
     base_url = required_env("NEXT_PUBLIC_SUPABASE_URL").rstrip("/")
     service_key = required_env("SUPABASE_SERVICE_ROLE_KEY")
     url = f"{base_url}/rest/v1/{table}"
     if query:
         url += "?" + urllib.parse.urlencode(query)
 
+    data = None
     headers = {
         "apikey": service_key,
         "Authorization": f"Bearer {service_key}",
     }
     if body is not None:
+        data = json.dumps(body).encode("utf-8")
+        headers["Content-Type"] = "application/json"
         headers["Prefer"] = "return=minimal"
 
-    response = requests.request(method, url, headers=headers, json=body, timeout=30)
-    if not response.ok:
-        raise RuntimeError(f"Supabase {method} {table} failed: {response.status_code} {response.text[:500]}")
-    return response.json() if response.text else None
+    request = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            text = response.read().decode("utf-8")
+            return json.loads(text) if text else None
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Supabase {method} {table} failed: {error.code} {detail[:500]}") from error
 
 
 def fetch_rows(limit, include_processed, overwrite):
