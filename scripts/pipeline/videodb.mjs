@@ -19,7 +19,7 @@ export async function createVideoDbAdapter(options = {}) {
   let connect;
   try {
     ({ connect } = await import("videodb"));
-  } catch (error) {
+  } catch {
     throw new Error("Missing VideoDB Node SDK. Run `npm install` or `npm install videodb` before live cache builds.");
   }
   const conn = connect.length === 0 ? connect() : connect({ apiKey });
