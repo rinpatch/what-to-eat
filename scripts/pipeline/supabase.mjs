@@ -95,7 +95,6 @@ export async function upsertReels(reels) {
   return { upserted: rows.length, skipped };
 }
 
-
 export function rawReelsToVideoDbPosts(rawReels, creatorsById = {}) {
   return rawReels
     .filter((row) => row?.video_url || row?.url)
@@ -152,4 +151,48 @@ export async function fetchRawReelsForVideoDb({ limit = 5, includeProcessed = fa
   }
 
   return rawReelsToVideoDbPosts(data || [], creatorsById);
+}
+
+// Fetches raw_reels that haven't had location enrichment run yet.
+// "Not enriched" = processed=false AND place_id IS NULL AND processing_error IS NULL
+export async function fetchUnenrichedReels(limit = 50) {
+  const { data, error } = await client()
+    .from("raw_reels")
+    .select("reel_id, caption, transcript")
+    .eq("processed", false)
+    .is("place_id", null)
+    .is("processing_error", null)
+    .order("scraped_at", { ascending: true })
+    .limit(limit);
+  if (error) throw new Error(`Failed to fetch unenriched reels: ${error.message}`);
+  return data;
+}
+
+// Upserts a place row (from locations.mjs) into the places table.
+export async function upsertPlace(place) {
+  const { error } = await client()
+    .from("places")
+    .upsert(
+      {
+        ...place,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "place_id" },
+    );
+  if (error) throw new Error(`Failed to upsert place ${place.place_id}: ${error.message}`);
+}
+
+// Updates a raw_reel with the extracted place name and resolved place_id.
+// Pass processingError to record failures without marking processed=true.
+export async function updateReelLocation(reelId, { rawPlaceName, placeId, processingError } = {}) {
+  const patch = {};
+  if (rawPlaceName !== undefined) patch.raw_place_name = rawPlaceName;
+  if (placeId !== undefined) patch.place_id = placeId;
+  if (processingError !== undefined) patch.processing_error = processingError;
+
+  const { error } = await client()
+    .from("raw_reels")
+    .update(patch)
+    .eq("reel_id", reelId);
+  if (error) throw new Error(`Failed to update reel ${reelId}: ${error.message}`);
 }
