@@ -44,3 +44,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/data/seed_posts.json
+/data/videodb_evidence.json
+/data/videodb_evidence.demo.json
