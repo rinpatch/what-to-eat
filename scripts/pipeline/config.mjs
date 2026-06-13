@@ -5,11 +5,9 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 export const repoRoot = join(here, "..", "..");
 
-export function loadDotEnv() {
-  const envPath = join(repoRoot, ".env");
-  if (!existsSync(envPath)) return;
-
-  const lines = readFileSync(envPath, "utf8").split(/\r?\n/);
+function parseEnvFile(path) {
+  if (!existsSync(path)) return;
+  const lines = readFileSync(path, "utf8").split(/\r?\n/);
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
@@ -19,6 +17,11 @@ export function loadDotEnv() {
     const value = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, "");
     if (!process.env[key]) process.env[key] = value;
   }
+}
+
+export function loadDotEnv() {
+  parseEnvFile(join(repoRoot, ".env"));
+  parseEnvFile(join(repoRoot, ".env.local"));
 }
 
 export function requireEnv(name) {

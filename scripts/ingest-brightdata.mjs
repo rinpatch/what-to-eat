@@ -7,10 +7,14 @@ import {
   writeJson,
   writePipelineDb,
 } from "./pipeline/fsdb.mjs";
+import { loadDotEnv } from "./pipeline/config.mjs";
 import {
   normalizeSnapshotRows,
   triggerInstagramDiscovery,
 } from "./pipeline/brightdata.mjs";
+import { upsertReels } from "./pipeline/supabase.mjs";
+
+loadDotEnv();
 
 function normalizeCreatorUrl(url) {
   try {
@@ -79,6 +83,12 @@ for (const creator of creators) {
       job.reelCount = reels.length;
       delete job.rows;
       console.log(`  received ${reels.length} reels directly`);
+      try {
+        const { upserted, skipped } = await upsertReels(reels);
+        console.log(`  supabase: upserted ${upserted}, skipped ${skipped}`);
+      } catch (err) {
+        console.warn(`  supabase upsert failed: ${err.message}`);
+      }
     }
     jobs.push(job);
     console.log(`  snapshot: ${job.snapshotId}`);

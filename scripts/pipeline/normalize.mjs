@@ -136,7 +136,7 @@ export function normalizeInstagramReel(row, creator = {}) {
     publishedAt: publishedAt || null,
     metrics: {
       likes: numberFrom(row, ["likes", "like_count", "likes_count", "edge_media_preview_like.count"]),
-      comments: numberFrom(row, ["comments", "comment_count", "comments_count", "edge_media_to_comment.count"]),
+      comments: numberFrom(row, ["num_comments", "comments", "comment_count", "comments_count", "edge_media_to_comment.count"]),
       sends: numberFrom(row, ["sends", "send_count", "share_count", "shares"]),
       reposts: numberFrom(row, ["reposts", "repost_count", "reshare_count", "reshare_count_int"]),
       views: numberFrom(row, ["views", "view_count", "video_view_count", "video_play_count", "play_count"]),
