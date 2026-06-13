@@ -4,9 +4,7 @@
  * extracts clip metadata via LLM, and writes results to the clips table.
  *
  * Usage:
- *   node scripts/process-reels.mjs [--limit=N] [--write] [--overwrite] [--include-processed]
- *
- * Dry-run by default; pass --write to actually insert into Supabase.
+ *   node scripts/process-reels.mjs [--limit=N] [--concurrency=N] [--write] [--overwrite] [--include-processed]
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -27,6 +25,7 @@ function hasFlag(name) {
 }
 
 const limit = Number(argValue("limit") || 1);
+const concurrency = Number(argValue("concurrency") || 5);
 const write = hasFlag("write");
 const overwrite = hasFlag("overwrite");
 const includeProcessed = hasFlag("include-processed");
@@ -195,31 +194,25 @@ function computeEngagementScore(reel) {
   return raw / hoursSince;
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── Concurrency helper ────────────────────────────────────────────────────────
 
-const reels = await fetchUnprocessedReels(limit, includeProcessed);
-console.log(`Fetched ${reels.length} raw_reel(s) (limit=${limit}, write=${write})`);
-
-const summary = {
-  dryRun: !write,
-  checked: reels.length,
-  inserted: 0,
-  skipped: 0,
-  failed: 0,
-  rows: [],
-};
-
-if (!reels.length) {
-  console.log(JSON.stringify(summary, null, 2));
-  process.exit(0);
+async function runConcurrent(items, fn, limit) {
+  const results = new Array(items.length);
+  const executing = new Set();
+  let i = 0;
+  for (const item of items) {
+    const idx = i++;
+    const p = fn(item).then((r) => { executing.delete(p); results[idx] = r; });
+    executing.add(p);
+    if (executing.size >= limit) await Promise.race(executing);
+  }
+  await Promise.allSettled(executing);
+  return results;
 }
 
-let adapter = null;
-if (!skipVideodb) {
-  adapter = await createVideoDbAdapter();
-}
+// ── Per-reel processor ────────────────────────────────────────────────────────
 
-for (const reel of reels) {
+async function processReel(reel, { adapter, summary }) {
   const reelId = reel.reel_id;
 
   const log = (action, extra = {}) => {
@@ -235,7 +228,7 @@ for (const reel of reels) {
       if (exists) {
         summary.skipped++;
         log("skipped", { reason: "clip already exists for this reel" });
-        continue;
+        return;
       }
     }
 
@@ -286,6 +279,17 @@ for (const reel of reels) {
       transcript = reel.transcript;
       console.log(`  [${reelId}] transcript: using existing raw_reels value (${transcript.length} chars)`);
     }
+
+    // Discard transcript if it's mostly CJK — likely background music lyrics, not useful
+    if (transcript) {
+      const cjkCount = (transcript.match(/[一-鿿぀-ヿ]/g) || []).length;
+      if (cjkCount / transcript.length > 0.4) {
+        console.log(`  [${reelId}] transcript: discarded (${Math.round(cjkCount/transcript.length*100)}% CJK — likely background music)`);
+        transcript = "";
+        transcriptWords = [];
+      }
+    }
+
     const bestClip = evidence.best_clip;
 
     // Step 2: Save transcript back to raw_reels
@@ -298,8 +302,8 @@ for (const reel of reels) {
     console.log(
       `  [${reelId}] meta: dish="${meta.dish_name}" cuisine=${meta.tags.cuisine} priceBand=${meta.tags.priceBand} vibe=${meta.tags.vibe} sentiment=${meta.sentiment}`,
     );
+
     // Step 4: Build and insert clip row
-    // Anchor the clip to where the pull quote appears in the transcript
     const quoteStart = meta.pull_quote ? findQuoteStart(transcriptWords, meta.pull_quote) : null;
     if (meta.pull_quote) console.log(`  [${reelId}] pull_quote: "${meta.pull_quote}" → clip_start=${quoteStart ?? "not found"}`);
     const clipStart = quoteStart ?? (bestClip ? bestClip.start : null);
@@ -355,6 +359,32 @@ for (const reel of reels) {
     }
   }
 }
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+const reels = await fetchUnprocessedReels(limit, includeProcessed);
+console.log(`Fetched ${reels.length} raw_reel(s) (limit=${limit}, concurrency=${concurrency}, write=${write})`);
+
+const summary = {
+  dryRun: !write,
+  checked: reels.length,
+  inserted: 0,
+  skipped: 0,
+  failed: 0,
+  rows: [],
+};
+
+if (!reels.length) {
+  console.log(JSON.stringify(summary, null, 2));
+  process.exit(0);
+}
+
+let adapter = null;
+if (!skipVideodb) {
+  adapter = await createVideoDbAdapter();
+}
+
+await runConcurrent(reels, (reel) => processReel(reel, { adapter, summary }), concurrency);
 
 console.log(JSON.stringify(summary, null, 2));
 process.exit(summary.failed > 0 && summary.inserted === 0 ? 1 : 0);
