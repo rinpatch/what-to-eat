@@ -653,7 +653,7 @@ export function SwipeDeck() {
                 <>
                   <SlidersHorizontal size={26} />
                   <strong>No bites in this cuisine</strong>
-                  <span>Clear the filter or try a wider nearby range.</span>
+                  <span>Clear the filter or try a larger distance.</span>
                   <button
                     className="state-action"
                     type="button"

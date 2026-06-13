@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-06-13T15:47:29+08:00",
+  "generatedAt": "2026-06-13T16:11:43+08:00",
   "title": "Design System: What To Eat Ah",
   "extensions": {
     "colorMeta": {
@@ -120,7 +120,7 @@
       "kind": "input",
       "refersTo": "filter-bar",
       "description": "Compact distance control above the deck.",
-      "html": "<label class=\"ds-filter\"><span>Nearby range</span><strong>up to 30 min</strong><input type=\"range\" min=\"5\" max=\"45\" step=\"5\" value=\"30\" /></label>",
+      "html": "<label class=\"ds-filter\"><span>Distance</span><strong>up to 10 km</strong><input type=\"range\" min=\"1\" max=\"15\" step=\"1\" value=\"10\" /></label>",
       "css": ".ds-filter { background: #eee3cc; border: 1px solid #d8c9aa; border-radius: 14px; color: #16130f; display: grid; gap: 10px; padding: 10px 12px 12px; width: 320px; } .ds-filter span { color: #6b6052; font-family: Archivo, Arial, Helvetica, sans-serif; font-size: .75rem; font-weight: 900; text-transform: uppercase; } .ds-filter strong { align-items: center; background: #16130f; border-radius: 999px; color: #fff8eb; display: inline-flex; font-family: Archivo, Arial, Helvetica, sans-serif; font-size: .78rem; font-weight: 900; justify-self: end; margin-top: -34px; min-height: 28px; padding: 6px 10px; } .ds-filter input { accent-color: #1f7a4d; width: 100%; } .ds-filter:focus-within { outline: 3px solid rgba(31,122,77,.28); }"
     },
     {
