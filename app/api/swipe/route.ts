@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const clip = findClip(body.clipId);
+  const clip = await findClip(body.clipId);
   if (!clip) {
     return NextResponse.json({ error: "Clip not found." }, { status: 404 });
   }
@@ -68,6 +68,12 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     weights,
-    cards: getDeckCards(maxDistanceKm, weights, seenClipIds, cuisines),
+    cards: await getDeckCards(
+      maxDistanceKm,
+      weights,
+      seenClipIds,
+      cuisines,
+      body.userLocation ?? null,
+    ),
   });
 }

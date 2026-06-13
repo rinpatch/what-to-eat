@@ -45,6 +45,7 @@ export type Place = {
   lat: number;
   lng: number;
   googleRating: number | null;
+  googleReviewCount: number | null;
   priceLevel: number | null;
   distanceMinutes: number;
   distanceKm: number;
@@ -90,6 +91,11 @@ export type DeckCard = {
 
 export type TasteWeights = Partial<Record<TasteTag, number>>;
 
+export type UserLocation = {
+  lat: number;
+  lng: number;
+};
+
 export type SwipeRequest = {
   clipId: string;
   action: SwipeAction;
@@ -97,4 +103,5 @@ export type SwipeRequest = {
   seenClipIds?: string[];
   maxDistanceKm?: number;
   cuisines?: CuisineTag[];
+  userLocation?: UserLocation | null;
 };

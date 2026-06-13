@@ -20,14 +20,16 @@ import {
   useCallback,
   useEffect,
   useRef,
-  useState
+  useState,
+  type SyntheticEvent
 } from "react";
 import {
   CUISINE_TAGS,
   type CuisineTag,
   type DeckCard,
   type SwipeAction,
-  type TasteWeights
+  type TasteWeights,
+  type UserLocation
 } from "@/lib/types";
 
 type DragState = {
@@ -50,11 +52,14 @@ type HistoryEntry = SessionState & {
   cards: DeckCard[];
 };
 
+type LocationStatus = "requesting" | "granted" | "denied" | "unavailable";
+
 const STORAGE_KEY = "what-to-eat-ah-session";
 const DEFAULT_DISTANCE_KM = 10;
 const MIN_DISTANCE_KM = 1;
 const MAX_DISTANCE_KM = 15;
 const SWIPE_THRESHOLD = 92;
+const SWIPE_OUT_MS = 220;
 const cuisineSet = new Set<string>(CUISINE_TAGS);
 const cuisineLabels: Record<CuisineTag, string> = {
   local: "Local",
@@ -82,6 +87,10 @@ const emptyDrag: DragState = {
   dragging: false
 };
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 function normalizeCuisines(value: unknown): CuisineTag[] {
   const rawItems = Array.isArray(value) ? value : [];
 
@@ -105,13 +114,38 @@ function clampDistanceKm(value: unknown): number {
   return Math.min(MAX_DISTANCE_KM, Math.max(MIN_DISTANCE_KM, distance));
 }
 
-function deckUrl(maxDistanceKm: number, cuisines: CuisineTag[]) {
+function deckUrl({
+  maxDistanceKm,
+  cuisines,
+  seenClipIds,
+  weights,
+  userLocation
+}: {
+  maxDistanceKm: number;
+  cuisines: CuisineTag[];
+  seenClipIds: string[];
+  weights: TasteWeights;
+  userLocation: UserLocation | null;
+}) {
   const params = new URLSearchParams({
     maxDistanceKm: String(maxDistanceKm)
   });
 
   if (cuisines.length) {
     params.set("cuisines", cuisines.join(","));
+  }
+
+  if (seenClipIds.length) {
+    params.set("seenClipIds", seenClipIds.join(","));
+  }
+
+  if (Object.keys(weights).length) {
+    params.set("weights", JSON.stringify(weights));
+  }
+
+  if (userLocation) {
+    params.set("lat", String(userLocation.lat));
+    params.set("lng", String(userLocation.lng));
   }
 
   return `/api/deck?${params.toString()}`;
@@ -226,13 +260,6 @@ function priceLabel(priceLevel: number | null) {
   return "$".repeat(priceLevel);
 }
 
-function tasteEntries(weights: TasteWeights) {
-  return Object.entries(weights)
-    .filter(([, score]) => score !== 0)
-    .sort(([, a], [, b]) => Math.abs(b ?? 0) - Math.abs(a ?? 0))
-    .slice(0, 4);
-}
-
 export function SwipeDeck() {
   const [cards, setCards] = useState<DeckCard[]>([]);
   const [seenClipIds, setSeenClipIds] = useState<string[]>([]);
@@ -250,12 +277,14 @@ export function SwipeDeck() {
   const [cuisineOpen, setCuisineOpen] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const [hasHydrated, setHasHydrated] = useState(false);
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [locationStatus, setLocationStatus] =
+    useState<LocationStatus>("requesting");
   const cardRef = useRef<HTMLDivElement | null>(null);
 
   const activeCard = cards[0] ?? null;
   const nextCard = cards[1] ?? null;
   const thirdCard = cards[2] ?? null;
-  const tasteBars = tasteEntries(weights);
   const distanceProgress =
     ((maxDistanceKm - MIN_DISTANCE_KM) / (MAX_DISTANCE_KM - MIN_DISTANCE_KM)) *
     100;
@@ -278,28 +307,38 @@ export function SwipeDeck() {
     [maxDistanceKm, savedCards, seenClipIds, selectedCuisines, weights]
   );
 
-  const loadDeck = useCallback(async (distance: number, cuisines: CuisineTag[]) => {
-    setIsLoading(true);
-    setError(null);
+  const loadDeck = useCallback(
+    async (
+      distance: number,
+      cuisines: CuisineTag[],
+      location: UserLocation | null,
+    ) => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const payload = await requestJson<{ cards: DeckCard[] }>(
-        deckUrl(distance, cuisines)
-      );
-      const session = readSession();
-      const remainingCards = payload.cards.filter(
-        (card) => !session.seenClipIds.includes(card.clip.clipId)
-      );
-      setCards(remainingCards);
-      setSeenClipIds(session.seenClipIds);
-      setSavedCards(session.savedCards);
-      setWeights(session.weights);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Load failed.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      try {
+        const session = readSession();
+        const payload = await requestJson<{ cards: DeckCard[] }>(
+          deckUrl({
+            maxDistanceKm: distance,
+            cuisines,
+            seenClipIds: session.seenClipIds,
+            weights: session.weights,
+            userLocation: location,
+          }),
+        );
+        setCards(payload.cards);
+        setSeenClipIds(session.seenClipIds);
+        setSavedCards(session.savedCards);
+        setWeights(session.weights);
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : "Load failed.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     const session = readSession();
@@ -313,10 +352,33 @@ export function SwipeDeck() {
   }, []);
 
   useEffect(() => {
-    if (hasHydrated) {
-      void loadDeck(maxDistanceKm, selectedCuisines);
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setLocationStatus("unavailable");
+      return;
     }
-  }, [hasHydrated, loadDeck, maxDistanceKm, selectedCuisines]);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setLocationStatus("granted");
+      },
+      () => setLocationStatus("denied"),
+      {
+        enableHighAccuracy: false,
+        maximumAge: 10 * 60 * 1000,
+        timeout: 6500
+      }
+    );
+  }, []);
+
+  useEffect(() => {
+    if (hasHydrated) {
+      void loadDeck(maxDistanceKm, selectedCuisines, userLocation);
+    }
+  }, [hasHydrated, loadDeck, maxDistanceKm, selectedCuisines, userLocation]);
 
   useEffect(() => {
     if (hasHydrated) {
@@ -338,6 +400,14 @@ export function SwipeDeck() {
       return;
     }
 
+    if (
+      event.target instanceof HTMLElement &&
+      event.target.closest("a, button, input")
+    ) {
+      return;
+    }
+
+    event.currentTarget.setPointerCapture(event.pointerId);
     setDrag({
       startX: event.clientX,
       startY: event.clientY,
@@ -357,7 +427,6 @@ export function SwipeDeck() {
     const shouldDrag = Math.abs(x) > 12 && Math.abs(x) > Math.abs(y);
 
     if (shouldDrag) {
-      event.currentTarget.setPointerCapture(event.pointerId);
       setDrag((current) => ({
         ...current,
         x,
@@ -374,6 +443,8 @@ export function SwipeDeck() {
       }
 
       const direction = action === "right" ? 1 : -1;
+      const cardWidth = cardRef.current?.offsetWidth ?? 360;
+      const exitX = direction * Math.max(520, cardWidth * 1.75);
       const nextSeen = Array.from(
         new Set([...seenClipIds, activeCard.clip.clipId])
       );
@@ -400,8 +471,8 @@ export function SwipeDeck() {
       setDrag({
         startX: 0,
         startY: 0,
-        x: direction * 520,
-        y: -28,
+        x: exitX,
+        y: -18,
         dragging: true
       });
 
@@ -420,7 +491,8 @@ export function SwipeDeck() {
             weights,
             seenClipIds,
             maxDistanceKm,
-            cuisines: selectedCuisines
+            cuisines: selectedCuisines,
+            userLocation
           })
         });
 
@@ -441,7 +513,7 @@ export function SwipeDeck() {
           });
           resetDrag();
           setIsSwiping(false);
-        }, 170);
+        }, SWIPE_OUT_MS);
       } catch (swipeError) {
         setError(
           swipeError instanceof Error ? swipeError.message : "Swipe failed."
@@ -460,11 +532,16 @@ export function SwipeDeck() {
       savedCards,
       seenClipIds,
       selectedCuisines,
+      userLocation,
       weights
     ]
   );
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
     if (!drag.dragging) {
       resetDrag();
       return;
@@ -473,6 +550,14 @@ export function SwipeDeck() {
     if (Math.abs(drag.x) >= SWIPE_THRESHOLD) {
       void commitSwipe(drag.x > 0 ? "right" : "left");
       return;
+    }
+
+    resetDrag();
+  };
+
+  const handlePointerCancel = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
     }
 
     resetDrag();
@@ -544,7 +629,11 @@ export function SwipeDeck() {
   };
 
   const activeTransform = activeCard
-    ? `translate3d(${drag.x}px, ${drag.y}px, 0) rotate(${drag.x / 18}deg)`
+    ? `translate3d(${drag.x}px, ${drag.y}px, 0) rotate(${clamp(
+        drag.x / 22,
+        -14,
+        14,
+      )}deg)`
     : undefined;
 
   return (
@@ -574,7 +663,10 @@ export function SwipeDeck() {
         <div className="filter-bar">
           <div className="filter-copy">
             <label htmlFor="distance">Distance</label>
-            <span className="range-value">up to {maxDistanceKm} km</span>
+            <span className="range-value">
+              {locationStatus === "granted" ? "near you" : "SG center"} · up to{" "}
+              {maxDistanceKm} km
+            </span>
           </div>
           <input
             id="distance"
@@ -623,11 +715,13 @@ export function SwipeDeck() {
               <div
                 key={activeCard.clip.clipId}
                 ref={cardRef}
-                className="swipe-card active-card"
+                className={`swipe-card active-card ${
+                  drag.dragging && !isSwiping ? "dragging-card" : ""
+                } ${isSwiping ? "swiping-card" : ""}`}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
-                onPointerCancel={resetDrag}
+                onPointerCancel={handlePointerCancel}
                 style={{ transform: activeTransform }}
               >
                 <FoodCard card={activeCard} isActive />
@@ -715,8 +809,6 @@ export function SwipeDeck() {
             <ChevronDown size={24} />
           </button>
         </nav>
-
-        <PreferencePeek entries={tasteBars} swipeCount={seenClipIds.length} />
       </section>
 
       <div className={`toast ${toastVisible ? "show" : ""}`}>
@@ -760,15 +852,12 @@ function FoodCard({
     >
       <div className="media-layer">
         {isActive && card.clip.videoUrl ? (
-          <video
-            key={card.clip.clipId}
-            className="clip-video"
-            src={card.clip.videoUrl}
-            poster={card.clip.posterUrl}
-            muted
-            playsInline
-            autoPlay
-            loop
+          <ClipPlayer
+            clipId={card.clip.clipId}
+            posterUrl={card.clip.posterUrl}
+            videoUrl={card.clip.videoUrl}
+            start={card.clip.clipStart}
+            end={card.clip.clipEnd}
           />
         ) : (
           <img
@@ -787,6 +876,17 @@ function FoodCard({
             <MapPin size={15} />
             {card.place.distanceKm.toFixed(1)} km
           </span>
+          {card.place.googleRating ? (
+            <span>
+              <Star size={14} />
+              {card.place.googleRating.toFixed(1)}
+              {card.place.googleReviewCount
+                ? ` · ${Intl.NumberFormat("en", {
+                    notation: "compact"
+                  }).format(card.place.googleReviewCount)}`
+                : ""}
+            </span>
+          ) : null}
         </div>
 
         <div className="title-block">
@@ -809,6 +909,78 @@ function FoodCard({
 
       {!isPreview ? <CardDetails card={card} /> : null}
     </article>
+  );
+}
+
+function ClipPlayer({
+  clipId,
+  videoUrl,
+  posterUrl,
+  start,
+  end
+}: {
+  clipId: string;
+  videoUrl: string;
+  posterUrl: string;
+  start: number;
+  end: number;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [failed, setFailed] = useState(false);
+  const safeStart = Math.max(0, start || 0);
+  const safeEnd = end && end > safeStart ? end : safeStart + 18;
+
+  const syncStart = (event: SyntheticEvent<HTMLVideoElement>) => {
+    const video = event.currentTarget;
+    if (Number.isFinite(safeStart) && video.currentTime < safeStart) {
+      video.currentTime = safeStart;
+    }
+  };
+
+  const loopClip = (event: SyntheticEvent<HTMLVideoElement>) => {
+    const video = event.currentTarget;
+    if (video.currentTime >= safeEnd) {
+      video.currentTime = safeStart;
+      void video.play().catch(() => undefined);
+    }
+  };
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    video.currentTime = safeStart;
+    void video.play().catch(() => undefined);
+  }, [clipId, safeStart]);
+
+  if (failed) {
+    return (
+      <img
+        className="clip-video"
+        src={posterUrl}
+        alt=""
+        aria-hidden="true"
+      />
+    );
+  }
+
+  return (
+    <video
+      key={clipId}
+      ref={videoRef}
+      className="clip-video"
+      src={videoUrl}
+      poster={posterUrl}
+      muted
+      playsInline
+      autoPlay
+      preload="metadata"
+      onLoadedMetadata={syncStart}
+      onTimeUpdate={loopClip}
+      onError={() => setFailed(true)}
+    />
   );
 }
 
@@ -893,55 +1065,6 @@ function CuisineSheet({
   );
 }
 
-function PreferencePeek({
-  entries,
-  swipeCount
-}: {
-  entries: [string, number][];
-  swipeCount: number;
-}) {
-  const max = Math.max(...entries.map(([, score]) => Math.abs(score)), 1);
-
-  return (
-    <section className="preference-peek" aria-label="Taste profile">
-      <div className="peek-head">
-        <span>what it&apos;s learning about you</span>
-        <span>
-          {swipeCount} swipe{swipeCount === 1 ? "" : "s"}
-        </span>
-      </div>
-      <div className="peek-bars">
-        {entries.length ? (
-          entries.map(([tag, score]) => {
-            const scale = Math.abs(score) / max;
-            const positive = score > 0;
-
-            return (
-              <div className="peek-bar" key={tag}>
-                <span className="bar-name">{tag}</span>
-                <span className="bar-track">
-                  <span
-                    className={positive ? "bar-fill good" : "bar-fill nope"}
-                    style={{ transform: `scaleX(${scale})` }}
-                  />
-                </span>
-                <span className={positive ? "bar-value good" : "bar-value nope"}>
-                  {positive ? "+" : ""}
-                  {score}
-                </span>
-              </div>
-            );
-          })
-        ) : (
-          <span className="empty-copy compact">
-            swipe a few to watch your taste profile build...
-          </span>
-        )}
-      </div>
-    </section>
-  );
-}
-
 function CardDetails({ card }: { card: DeckCard }) {
   const price = priceLabel(card.place.priceLevel);
 
@@ -963,16 +1086,17 @@ function CardDetails({ card }: { card: DeckCard }) {
           <span>
             <Star size={16} />
             {card.place.googleRating.toFixed(1)}
+            {card.place.googleReviewCount
+              ? ` from ${Intl.NumberFormat("en", {
+                  notation: "compact"
+                }).format(card.place.googleReviewCount)} reviews`
+              : ""}
           </span>
         ) : null}
         {price ? <span>{price}</span> : null}
         <span>
           <MapPin size={16} />
           {card.place.distanceKm.toFixed(1)} km
-        </span>
-        <span>
-          <Flame size={16} />
-          {card.velocityScore.toFixed(1)}
         </span>
       </div>
 
