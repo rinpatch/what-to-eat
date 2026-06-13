@@ -67,10 +67,15 @@ export function pipelineConfig() {
       model: process.env.KIMI_MODEL || "kimi-k2.7-code",
     },
     maps: {
-      apiKey: process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY || "",
+      apiKey: process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY || "",
       region: process.env.GOOGLE_MAPS_REGION || "",
       userLat: optionalNumber("USER_LAT"),
       userLng: optionalNumber("USER_LNG"),
+    },
+    tokenRouter: {
+      apiKey: process.env.TOKEN_ROUTER_API_KEY || "",
+      baseUrl: process.env.TOKEN_ROUTER_BASE_URL || "https://api.tokenrouter.com/v1",
+      model: process.env.TOKEN_ROUTER_MODEL || "google/gemini-3.5-flash",
     },
   };
 }
