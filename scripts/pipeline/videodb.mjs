@@ -168,6 +168,7 @@ async function searchVideo(video, query, indexType) {
   const results = await callWithVariants(video.search.bind(video), [
     [query, { indexType }],
     [query, { index_type: indexType }],
+    [query, { search_type: "semantic" }],
     [query, indexType],
     [query],
   ]);
@@ -184,16 +185,15 @@ async function callFirstAvailable(target, names, argVariants) {
 }
 
 async function callWithVariants(fn, argVariants) {
-  let lastTypeError = null;
+  let lastError = null;
   for (const args of argVariants) {
     try {
       return await fn(...args);
     } catch (error) {
-      if (!(error instanceof TypeError)) throw error;
-      lastTypeError = error;
+      lastError = error;
     }
   }
-  throw lastTypeError || new Error("No compatible VideoDB SDK call signature worked");
+  throw lastError || new Error("No compatible VideoDB SDK call signature worked");
 }
 
 function normalizeShots(results, fallbackSource) {
