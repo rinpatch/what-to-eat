@@ -303,6 +303,7 @@ for (const reel of reels) {
       dish_name: meta.dish_name,
       price: meta.price,
       video_url: reel.video_url,
+      stream_url: evidence.stream_url || null,
       clip_start: bestClip ? Math.round(bestClip.start) : null,
       clip_end: bestClip ? Math.round(bestClip.end) : null,
       transcript: transcript || null,
