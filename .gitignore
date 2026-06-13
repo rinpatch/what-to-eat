@@ -33,6 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# pipeline runtime data
+/data/raw/
+/data/brightdata_jobs.json
+/data/pipeline-db.json
+
 # vercel
 .vercel
 
