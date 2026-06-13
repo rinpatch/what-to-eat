@@ -1,86 +1,273 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# What To Eat Ah
 
-## Getting Started
+## The Short Version
 
-First, run the development server:
+**What To Eat Ah** is a mobile-first food decision app for Singapore. It turns trending creator food clips into a swipeable deck of real places you can actually visit.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Instead of opening five apps, scrolling for twenty minutes, and still asking "so what to eat ah?", the user opens one deck, filters by distance or cuisine, swipes through credible food clips, saves the good ones, and leaves with a shortlist.
+
+It is not a restaurant directory. It is not a TikTok clone. It is a dinner decision engine powered by social food evidence.
+
+## Demo
+
+Watch the video demo: https://drive.google.com/file/d/1qWUZW9tXGC6I7ANQ79CRfxWSfIovlN3s/view?usp=sharing
+
+## The Problem
+
+Choosing food in Singapore is weirdly hard because the information is everywhere and nowhere at the same time.
+
+Social feeds show what looks good, but they are built for endless scrolling, not deciding. Map apps show what is nearby, but they rarely capture what is currently exciting. Delivery apps optimize for ordering, not going out. Group chats collect links, but they do not help the group converge.
+
+The result is a familiar loop:
+
+- Someone asks what to eat.
+- Everyone sends random links.
+- The group opens social videos, map reviews, menus, and distance checks.
+- Nobody knows which option is actually worth acting on.
+
+**What To Eat Ah compresses that loop into a fast, physical swipe decision.**
+
+## Product Promise
+
+Open the app. Swipe through a small stack of food options. Save the ones that make sense. Pick from the shortlist.
+
+Each card answers the questions that matter in the moment:
+
+- What dish is this?
+- Where is it?
+- How far away is it?
+- Who recommended it?
+- Is there enough social proof?
+- Does it match what I seem to like?
+- Can I open it in Maps right now?
+
+The product succeeds when the user stops browsing and starts moving.
+
+## Who It Is For
+
+What To Eat Ah is built for people in Singapore deciding what to eat on their phone, usually under light pressure:
+
+- Friends choosing dinner in a group chat.
+- Students looking for something nearby after class.
+- Office workers deciding lunch without another spreadsheet-level debate.
+- Couples looking for a casual date-night option.
+- Anyone who trusts creator clips but wants a decision tool, not a feed.
+
+The app assumes the user is not doing deep restaurant research. They want credible, nearby, craveable options fast.
+
+## Core Experience
+
+The first screen is the product. No landing page, no explanation wall, no onboarding maze.
+
+The user sees a phone-sized swipe deck:
+
+- A large food card led by dish imagery or video.
+- Dish name, creator, engagement, distance, price, and rating.
+- A pull quote from the creator when available.
+- A detail layer inside the card with place facts and creator mentions.
+- A bottom action rail for nope, undo, save, and details.
+- A shortlist button in the top bar.
+- A distance slider and cuisine drawer above the deck.
+
+Swiping right saves a card to the user's crawl. Swiping left removes it from the session. The user can undo, open details, filter by cuisine, adjust the distance radius, and jump to Google Maps from the shortlist.
+
+## Why Swipe?
+
+Food decisions are emotional, quick, and comparative. A swipe deck matches that behavior better than a search results page.
+
+Search works when the user knows what they want. What To Eat Ah is for the more common moment: "I am hungry, nearby, and open to being convinced."
+
+The deck creates a finite decision loop:
+
+- One option at a time.
+- Clear yes/no action.
+- Immediate feedback.
+- A shortlist that gets better as the session progresses.
+
+## How Ranking Works
+
+The deck starts with social momentum, then personalizes as the user swipes.
+
+Each clip receives a velocity score based on engagement and recency. Newer, more active clips rise first. As the user swipes, the session updates taste weights across three kinds of tags:
+
+- Cuisine, such as local, Chinese, Malay, Korean, Japanese, Thai, Indian, and more.
+- Price band, such as cheap, mid, or treat.
+- Vibe, such as comfort, spicy, hawker, supper, sweet, or date-night.
+
+Right swipes increase the weights for that clip's tags. Left swipes reduce them. Personalization ramps up gradually, so the first cards are driven mostly by broad social signal, while later cards reflect what the user is choosing in the current session.
+
+The ranking formula is intentionally simple:
+
+```text
+card score = social velocity + personalization ramp * taste match
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+That makes the product explainable. A card appears because it is trending, nearby, and increasingly aligned with the user's taste.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Filters That Matter
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The MVP keeps filters tight because too many filters recreate the restaurant-directory problem.
 
-## Learn More
+The current controls are:
 
-To learn more about Next.js, take a look at the following resources:
+- **Distance radius:** 1 km to 15 km.
+- **Cuisine:** multi-select drawer with cuisines like local, Malay, Chinese, Japanese, Korean, Thai, Western, Mediterranean, Indian, and others.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The app deliberately keeps vibe tags inside the card instead of making them top-level filters. Vibe should explain why a recommendation fits, not become another configuration chore.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Shortlist
 
-## Deploy on Vercel
+The shortlist is the payoff.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Saved cards appear in a bottom sheet with:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Thumbnail.
+- Dish name.
+- Venue name.
+- Distance and rating.
+- Direct Maps action.
 
-## VideoDB Offline Cache
+This keeps the user in the decision flow. They can swipe, compare, and leave with an actionable food crawl without switching routes or losing context.
 
-The Vercel app should not run the full VideoDB ingest/index/search pipeline during a user request. Build a cache first, then let the frontend/API read the stable JSON contract.
+## Data Model
 
-Demo cache, no VideoDB calls:
+The product separates social clips from real places.
 
-```bash
-npm run videodb:demo
+Clips are the evidence. Places are the canonical destination.
+
+| Object | Purpose |
+| --- | --- |
+| `Place` | Venue name, address, location, Google rating, price level, distance, map URL |
+| `Clip` | Dish, creator, caption, poster/video, engagement, tags, quote, source timing |
+| `DeckCard` | A joined place and clip with creator mentions, velocity score, and final score |
+| `TasteWeights` | Session-level preference weights learned from swipes |
+
+This distinction matters because multiple creators can mention the same place. The user should not see random duplicate content as separate restaurants. The app can use many clips as supporting evidence for one real-world decision.
+
+## Pipeline
+
+The frontend should feel instant, so heavy video processing happens before the user request.
+
+The repo includes an offline cache pipeline that turns raw creator content into a stable JSON contract the app can read safely.
+
+```mermaid
+flowchart LR
+  A["Instagram food creators"] --> B["Bright Data discovery"]
+  B --> C["Normalize reels"]
+  C --> D["Supabase raw_reels"]
+  C --> E["VideoDB upload and index"]
+  E --> F["Transcript snippets"]
+  E --> G["Visual food snippets"]
+  F --> H["Best clip and quotes"]
+  G --> H
+  H --> I["videodb_evidence.json"]
+  I --> J["Deck API"]
+  J --> K["Swipe UI"]
 ```
 
-Supabase fetch into the VideoDB cache contract, still without VideoDB calls:
+The VideoDB cache records:
 
-```bash
-npm run smoke:supabase-videodb
-```
+- Original post ID and video URL.
+- VideoDB asset ID and stream URL.
+- Best clip start/end.
+- Transcript snippets.
+- Visual snippets.
+- Quote candidates.
+- TokenRouter-ready input.
+- Processing status and per-row errors.
 
-Dry-run Supabase write-back from cached VideoDB evidence:
+Failed or partial rows do not block the deck. The pipeline is designed to degrade gracefully.
 
-```bash
-npm run supabase:videodb -- --input=data/videodb_evidence.json --limit=5
-```
+## API Surface
 
-Write live VideoDB transcripts/errors back to `raw_reels.transcript` and `raw_reels.processing_error`:
+The app exposes two focused routes:
 
-```bash
-npm run supabase:videodb -- --input=data/videodb_evidence.json --write
-```
+| Route | Job |
+| --- | --- |
+| `GET /api/deck` | Returns ranked cards for distance and cuisine filters |
+| `POST /api/swipe` | Accepts a left/right swipe, updates taste weights, and returns the next ranked cards |
 
-Or generate the transcript directly from Supabase `raw_reels.video_url` via the Python VideoDB SDK:
+The client stores session state in `sessionStorage`, including seen clip IDs, saved cards, taste weights, distance radius, and selected cuisines. This keeps the MVP lightweight: no login is required to get a personalized session.
 
-```bash
-npm run supabase:videodb-transcripts -- --limit=1 --write
-```
+## Tech Stack
 
-Live cache from normalized Bright Data reels in `data/pipeline-db.json`:
+The product is built as a Next.js app with a data pipeline around it.
 
-```bash
-npm run videodb:cache -- --limit=60
-```
+- **Frontend:** Next.js App Router, React, TypeScript, Tailwind CSS.
+- **UI system:** Mobile-first CSS, Archivo display type, Instrument Sans body type, lucide-react icons.
+- **Recommendation logic:** Local ranking utilities for social velocity, tag weights, and distance filtering.
+- **Storage and ingestion:** Supabase pipeline scripts for raw reels and processed evidence.
+- **Content acquisition:** Bright Data scripts for Instagram creator discovery.
+- **Video understanding:** VideoDB for food audio indexing, visual indexing, search, best clip extraction, and quote candidates.
 
-Live cache from a Bright-Data-shaped seed file:
+## What Makes It Different
 
-```bash
-npm run videodb:cache -- --input=data/seed_posts.json --output=data/videodb_evidence.json --limit=60
-```
+Most food products start from one of three places: search, delivery, or content.
 
-Required local/server environment variable: `VIDEODB_API_KEY`. Keep it in `.env`, `.env.local`, or Vercel Environment Variables. Never expose it to the browser or commit it.
+What To Eat Ah starts from the decision.
 
-Each evidence row contains `post_id`, `video_id`, `stream_url`, `best_clip`, transcript snippets, visual snippets, quote candidates, TokenRouter input, status, and per-row errors. Failed clips do not block the deck.
+That changes the shape of the product:
+
+- It is finite, not endless.
+- It is place-aware, not just content-aware.
+- It uses social proof without becoming a social feed.
+- It learns from swipes without needing account setup.
+- It treats video as evidence, not entertainment.
+- It turns "this looks good" into "we can go there."
+
+## Demo Story
+
+Start with the line everyone knows:
+
+> "What to eat ah?"
+
+Then show the app opening directly into the deck.
+
+1. Adjust distance to keep options realistic.
+2. Swipe left on something that does not fit.
+3. Swipe right on something craveable.
+4. Show the taste bars updating after a few swipes.
+5. Open details to show the venue, distance, rating, creator evidence, and quote.
+6. Open the shortlist.
+7. Tap Maps.
+
+The demo lands because the product does not explain decision-making. It performs it.
+
+## Current MVP
+
+The MVP already demonstrates the full loop:
+
+- Swipeable mobile deck.
+- Distance and cuisine filters.
+- Left/right swipe actions with button fallbacks.
+- Undo.
+- Saved shortlist.
+- Maps handoff.
+- Session-based personalization.
+- Ranking by social velocity and taste match.
+- Offline VideoDB evidence cache tooling.
+- Bright Data and Supabase ingestion scripts.
+
+## Next Bets
+
+The strongest next steps are:
+
+- Real user location instead of static distance values.
+- Opening hours and "open now" filtering.
+- Group mode for shared shortlists and convergence.
+- Better duplicate handling across creators and dishes.
+- Dietary filters that stay simple, such as halal, vegetarian, spicy tolerance, and budget.
+- Productionized evidence generation from VideoDB cache into deck cards.
+- Stronger place enrichment with canonical venue IDs.
+
+## Product North Star
+
+The north star is not watch time. It is decision time.
+
+**How quickly can a hungry person go from "what to eat ah?" to a shortlist they trust?**
+
+Every feature should make that loop faster, more credible, or more locally relevant.
+
+## One-Line Pitch
+
+**What To Eat Ah turns Singapore food creator clips into a swipeable, personalized dinner shortlist you can act on immediately.**
