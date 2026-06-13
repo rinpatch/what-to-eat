@@ -1,13 +1,24 @@
 export type SwipeAction = "left" | "right";
 
-export type CuisineTag =
-  | "chinese"
-  | "japanese"
-  | "korean"
-  | "local"
-  | "malay"
-  | "thai"
-  | "western";
+export const CUISINE_TAGS = [
+  "local",
+  "malay",
+  "chinese",
+  "japanese",
+  "korean",
+  "thai",
+  "western",
+  "french",
+  "spanish",
+  "italian",
+  "peruvian",
+  "mediterranean",
+  "indian",
+  "russian",
+  "african",
+] as const;
+
+export type CuisineTag = (typeof CUISINE_TAGS)[number];
 
 export type PriceBandTag = "cheap" | "mid" | "treat";
 
@@ -84,5 +95,6 @@ export type SwipeRequest = {
   action: SwipeAction;
   weights?: TasteWeights;
   seenClipIds?: string[];
-  maxDistanceMin?: number;
+  maxDistanceKm?: number;
+  cuisines?: CuisineTag[];
 };

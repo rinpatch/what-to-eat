@@ -64,6 +64,6 @@ export function rankCards(
     .sort((a, b) => b.score - a.score);
 }
 
-export function withinDistance(place: Place, maxDistanceMin: number): boolean {
-  return place.distanceMinutes <= maxDistanceMin;
+export function withinDistance(place: Place, maxDistanceKm: number): boolean {
+  return place.distanceKm <= maxDistanceKm;
 }

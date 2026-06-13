@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-06-13T14:19:47+08:00",
+  "generatedAt": "2026-06-13T15:47:29+08:00",
   "title": "Design System: What To Eat Ah",
   "extensions": {
     "colorMeta": {
@@ -120,8 +120,16 @@
       "kind": "input",
       "refersTo": "filter-bar",
       "description": "Compact distance control above the deck.",
-      "html": "<label class=\"ds-filter\"><span>How far you willing</span><strong>30 min</strong><input type=\"range\" min=\"5\" max=\"45\" step=\"5\" value=\"30\" /></label>",
-      "css": ".ds-filter { background: #e8dcc4; border: 1.5px solid #d8c9aa; border-radius: 16px; color: #16130f; display: grid; gap: 8px; padding: 12px 14px 14px; width: 320px; } .ds-filter span, .ds-filter strong { font-family: Archivo, Arial, Helvetica, sans-serif; font-size: .75rem; font-weight: 900; text-transform: uppercase; } .ds-filter strong { color: #b8301c; justify-self: end; margin-top: -22px; } .ds-filter input { accent-color: #1f7a4d; width: 100%; } .ds-filter:focus-within { outline: 3px solid rgba(31,122,77,.28); }"
+      "html": "<label class=\"ds-filter\"><span>Nearby range</span><strong>up to 30 min</strong><input type=\"range\" min=\"5\" max=\"45\" step=\"5\" value=\"30\" /></label>",
+      "css": ".ds-filter { background: #eee3cc; border: 1px solid #d8c9aa; border-radius: 14px; color: #16130f; display: grid; gap: 10px; padding: 10px 12px 12px; width: 320px; } .ds-filter span { color: #6b6052; font-family: Archivo, Arial, Helvetica, sans-serif; font-size: .75rem; font-weight: 900; text-transform: uppercase; } .ds-filter strong { align-items: center; background: #16130f; border-radius: 999px; color: #fff8eb; display: inline-flex; font-family: Archivo, Arial, Helvetica, sans-serif; font-size: .78rem; font-weight: 900; justify-self: end; margin-top: -34px; min-height: 28px; padding: 6px 10px; } .ds-filter input { accent-color: #1f7a4d; width: 100%; } .ds-filter:focus-within { outline: 3px solid rgba(31,122,77,.28); }"
+    },
+    {
+      "name": "Cuisine Filter Drawer",
+      "kind": "custom",
+      "refersTo": "filter-bar",
+      "description": "Bottom-sheet cuisine picker that keeps the swipe surface clean.",
+      "html": "<section class=\"ds-cuisine-sheet\"><header><p>Filters</p><h2>Cuisine</h2></header><div><button class=\"ds-chip-active\">All</button><button class=\"ds-chip\">Italian</button><button class=\"ds-chip\">Mediterranean</button><button class=\"ds-chip\">Indian</button></div><footer><button class=\"ds-clear\">Clear</button><button class=\"ds-apply\">Apply</button></footer></section>",
+      "css": ".ds-cuisine-sheet { background: #f3ead9; border-radius: 18px 18px 0 0; color: #16130f; padding: 18px 16px 20px; width: 360px; } .ds-cuisine-sheet header { align-items: center; display: flex; justify-content: space-between; margin-bottom: 14px; } .ds-cuisine-sheet p { color: #b8301c; font-family: Archivo, Arial, Helvetica, sans-serif; font-size: .72rem; font-weight: 900; margin: 0 0 3px; text-transform: uppercase; } .ds-cuisine-sheet h2 { font-family: Archivo, Arial, Helvetica, sans-serif; font-size: 1.28rem; font-weight: 900; line-height: 1.05; margin: 0; } .ds-cuisine-sheet div { display: flex; flex-wrap: wrap; gap: 9px; } .ds-chip, .ds-chip-active { border: 1px solid #d8c9aa; border-radius: 999px; font-family: Archivo, Arial, Helvetica, sans-serif; font-size: .8rem; font-weight: 900; min-height: 38px; padding: 8px 12px; } .ds-chip { background: #fff8eb; color: #16130f; } .ds-chip-active { background: #e3452b; border-color: #e3452b; color: #fff; } .ds-cuisine-sheet footer { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; margin-top: 18px; } .ds-clear, .ds-apply { border: 0; border-radius: 999px; font-family: Archivo, Arial, Helvetica, sans-serif; font-size: .86rem; font-weight: 900; min-height: 44px; } .ds-clear { background: #e8dcc4; color: #16130f; } .ds-apply { background: #16130f; color: #fff8eb; }"
     },
     {
       "name": "Swipe Card",
@@ -176,14 +184,16 @@
       "Do use Chilli Action, Pandan Confirmation, and Kopi Gold in their assigned roles.",
       "Do omit nullable quote, price, and rating fields cleanly when they are missing.",
       "Do keep touch targets at least 42px, with primary swipe action larger than secondary actions.",
-      "Do preserve button fallbacks for every gesture."
+      "Do preserve button fallbacks for every gesture.",
+      "Do keep cuisine filters in the drawer when the option count is large."
     ],
     "donts": [
       "Don't turn the app into a marketing landing page, admin console, or decorative restaurant directory.",
       "Don't use generic delivery-app UI, beige foodie-blog editorial styling, dark purple SaaS gradients, influencer marketplace dashboards, or a full TikTok clone.",
       "Don't add side-stripe borders, gradient text, glassmorphism, or repeated identical card grids.",
       "Don't let decorative motion delay the swipe loop.",
-      "Don't make empty boxes for missing data."
+      "Don't make empty boxes for missing data.",
+      "Don't expose vibe tags as top-level filters."
     ]
   }
 }

@@ -1,24 +1,27 @@
 import deck from "@/data/deck.json";
 import { rankCards, withinDistance } from "@/lib/ranking";
-import type { DeckCard, DeckSource, TasteWeights } from "@/lib/types";
+import type { CuisineTag, DeckCard, DeckSource, TasteWeights } from "@/lib/types";
 
 const source = deck as DeckSource;
 
 export function getDeckCards(
-  maxDistanceMin = 30,
+  maxDistanceKm = 10,
   weights: TasteWeights = {},
   seenClipIds: string[] = [],
+  cuisines: CuisineTag[] = [],
 ): DeckCard[] {
   const seen = new Set(seenClipIds);
+  const cuisineFilter = new Set(cuisines);
   const placesById = new Map(
     source.places.map((place) => [place.placeId, place]),
   );
 
   const cards = source.clips
     .filter((clip) => !seen.has(clip.clipId))
+    .filter((clip) => !cuisineFilter.size || cuisineFilter.has(clip.tags.cuisine))
     .map((clip) => {
       const place = placesById.get(clip.placeId);
-      if (!place || !withinDistance(place, maxDistanceMin)) {
+      if (!place || !withinDistance(place, maxDistanceKm)) {
         return null;
       }
 

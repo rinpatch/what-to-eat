@@ -180,13 +180,17 @@ Depth is tactile but limited. The top swipe card uses one substantial ambient sh
 - **Internal Padding:** 14px-22px depending on density and thumb distance.
 
 ### Inputs / Fields
-- **Style:** The distance filter is a single range input with a Pandan-to-Gold track and Charred Ink thumb.
+- **Style:** The distance filter is a compact range input with a Pandan progress track, quiet neutral remainder, and Chilli Action thumb.
 - **Focus:** Keep the native affordance visible or replace it with an equally clear focus outline.
 - **Error / Disabled:** Disabled action buttons use opacity reduction and no pointer affordance; future errors should use inline state panels, not blocking modals.
 
 ### Navigation
 - **Style:** No global navigation for the MVP. The top bar holds brand and shortlist count; the bottom rail holds actions.
 - **Mobile Treatment:** Controls stay within the 360px phone stage and respect safe-area padding.
+
+### Cuisine Filter Drawer
+
+Cuisine filtering is a bottom sheet, not a permanent chip wall. The top control stays compact with a single Cuisine pill and active count; the drawer carries the full multi-select cuisine vocabulary. Vibe tags remain informational chips on cards and detail views only.
 
 ### Swipe Deck
 
@@ -204,6 +208,7 @@ The shortlist is a bottom drawer, not a route change. It uses saved-card list it
 - **Do** omit nullable quote, price, and rating fields cleanly when they are missing.
 - **Do** keep touch targets at least 42px, with primary swipe action larger than secondary actions.
 - **Do** preserve button fallbacks for every gesture.
+- **Do** keep cuisine filters in the drawer when the option count is large.
 
 ### Don't:
 - **Don't** turn the app into a marketing landing page, admin console, or decorative restaurant directory.
@@ -211,3 +216,4 @@ The shortlist is a bottom drawer, not a route change. It uses saved-card list it
 - **Don't** add side-stripe borders, gradient text, glassmorphism, or repeated identical card grids.
 - **Don't** let decorative motion delay the swipe loop.
 - **Don't** make empty boxes for missing data.
+- **Don't** expose vibe tags as top-level filters.

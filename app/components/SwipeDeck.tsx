@@ -5,14 +5,14 @@
 import {
   Bookmark,
   ChevronDown,
-  Clock3,
+  Check,
   Flame,
   Heart,
   MapPin,
   Navigation,
   RotateCcw,
+  SlidersHorizontal,
   Star,
-  Users,
   X
 } from "lucide-react";
 import {
@@ -22,7 +22,13 @@ import {
   useRef,
   useState
 } from "react";
-import type { DeckCard, SwipeAction, TasteWeights } from "@/lib/types";
+import {
+  CUISINE_TAGS,
+  type CuisineTag,
+  type DeckCard,
+  type SwipeAction,
+  type TasteWeights
+} from "@/lib/types";
 
 type DragState = {
   startX: number;
@@ -36,7 +42,8 @@ type SessionState = {
   seenClipIds: string[];
   savedCards: DeckCard[];
   weights: TasteWeights;
-  maxDistanceMin: number;
+  maxDistanceKm: number;
+  selectedCuisines: CuisineTag[];
 };
 
 type HistoryEntry = SessionState & {
@@ -44,8 +51,28 @@ type HistoryEntry = SessionState & {
 };
 
 const STORAGE_KEY = "what-to-eat-ah-session";
-const DEFAULT_DISTANCE = 30;
+const DEFAULT_DISTANCE_KM = 10;
+const MIN_DISTANCE_KM = 1;
+const MAX_DISTANCE_KM = 15;
 const SWIPE_THRESHOLD = 92;
+const cuisineSet = new Set<string>(CUISINE_TAGS);
+const cuisineLabels: Record<CuisineTag, string> = {
+  local: "Local",
+  malay: "Malay",
+  chinese: "Chinese",
+  japanese: "Japanese",
+  korean: "Korean",
+  thai: "Thai",
+  western: "Western",
+  french: "French",
+  spanish: "Spanish",
+  italian: "Italian",
+  peruvian: "Peruvian",
+  mediterranean: "Mediterranean",
+  indian: "Indian",
+  russian: "Russian",
+  african: "African"
+};
 
 const emptyDrag: DragState = {
   startX: 0,
@@ -55,13 +82,49 @@ const emptyDrag: DragState = {
   dragging: false
 };
 
+function normalizeCuisines(value: unknown): CuisineTag[] {
+  const rawItems = Array.isArray(value) ? value : [];
+
+  return Array.from(
+    new Set(
+      rawItems
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim().toLowerCase())
+        .filter((item): item is CuisineTag => cuisineSet.has(item)),
+    ),
+  );
+}
+
+function clampDistanceKm(value: unknown): number {
+  const distance = Number(value);
+
+  if (!Number.isFinite(distance)) {
+    return DEFAULT_DISTANCE_KM;
+  }
+
+  return Math.min(MAX_DISTANCE_KM, Math.max(MIN_DISTANCE_KM, distance));
+}
+
+function deckUrl(maxDistanceKm: number, cuisines: CuisineTag[]) {
+  const params = new URLSearchParams({
+    maxDistanceKm: String(maxDistanceKm)
+  });
+
+  if (cuisines.length) {
+    params.set("cuisines", cuisines.join(","));
+  }
+
+  return `/api/deck?${params.toString()}`;
+}
+
 function readSession(): SessionState {
   if (typeof window === "undefined") {
     return {
       seenClipIds: [],
       savedCards: [],
       weights: {},
-      maxDistanceMin: DEFAULT_DISTANCE
+      maxDistanceKm: DEFAULT_DISTANCE_KM,
+      selectedCuisines: []
     };
   }
 
@@ -74,17 +137,18 @@ function readSession(): SessionState {
       seenClipIds: Array.isArray(parsed.seenClipIds) ? parsed.seenClipIds : [],
       savedCards: Array.isArray(parsed.savedCards) ? parsed.savedCards : [],
       weights: parsed.weights ?? {},
-      maxDistanceMin:
-        typeof parsed.maxDistanceMin === "number"
-          ? parsed.maxDistanceMin
-          : DEFAULT_DISTANCE
+      maxDistanceKm: clampDistanceKm(
+        "maxDistanceKm" in parsed ? parsed.maxDistanceKm : undefined
+      ),
+      selectedCuisines: normalizeCuisines(parsed.selectedCuisines)
     };
   } catch {
     return {
       seenClipIds: [],
       savedCards: [],
       weights: {},
-      maxDistanceMin: DEFAULT_DISTANCE
+      maxDistanceKm: DEFAULT_DISTANCE_KM,
+      selectedCuisines: []
     };
   }
 }
@@ -174,13 +238,16 @@ export function SwipeDeck() {
   const [seenClipIds, setSeenClipIds] = useState<string[]>([]);
   const [savedCards, setSavedCards] = useState<DeckCard[]>([]);
   const [weights, setWeights] = useState<TasteWeights>({});
-  const [maxDistanceMin, setMaxDistanceMin] = useState(DEFAULT_DISTANCE);
+  const [maxDistanceKm, setMaxDistanceKm] = useState(DEFAULT_DISTANCE_KM);
+  const [selectedCuisines, setSelectedCuisines] = useState<CuisineTag[]>([]);
+  const [draftCuisines, setDraftCuisines] = useState<CuisineTag[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [drag, setDrag] = useState<DragState>(emptyDrag);
   const [isSwiping, setIsSwiping] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [shortlistOpen, setShortlistOpen] = useState(false);
+  const [cuisineOpen, setCuisineOpen] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const [hasHydrated, setHasHydrated] = useState(false);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -189,6 +256,12 @@ export function SwipeDeck() {
   const nextCard = cards[1] ?? null;
   const thirdCard = cards[2] ?? null;
   const tasteBars = tasteEntries(weights);
+  const distanceProgress =
+    ((maxDistanceKm - MIN_DISTANCE_KM) / (MAX_DISTANCE_KM - MIN_DISTANCE_KM)) *
+    100;
+  const cuisineSummary = selectedCuisines.length
+    ? selectedCuisines.map((cuisine) => cuisineLabels[cuisine]).join(", ")
+    : "All cuisines";
 
   const persist = useCallback(
     (overrides: Partial<SessionState> = {}) => {
@@ -196,21 +269,22 @@ export function SwipeDeck() {
         seenClipIds,
         savedCards,
         weights,
-        maxDistanceMin,
+        maxDistanceKm,
+        selectedCuisines,
         ...overrides
       };
       writeSession(session);
     },
-    [maxDistanceMin, savedCards, seenClipIds, weights]
+    [maxDistanceKm, savedCards, seenClipIds, selectedCuisines, weights]
   );
 
-  const loadDeck = useCallback(async (distance: number) => {
+  const loadDeck = useCallback(async (distance: number, cuisines: CuisineTag[]) => {
     setIsLoading(true);
     setError(null);
 
     try {
       const payload = await requestJson<{ cards: DeckCard[] }>(
-        `/api/deck?maxDistanceMin=${distance}`
+        deckUrl(distance, cuisines)
       );
       const session = readSession();
       const remainingCards = payload.cards.filter(
@@ -232,15 +306,17 @@ export function SwipeDeck() {
     setSeenClipIds(session.seenClipIds);
     setSavedCards(session.savedCards);
     setWeights(session.weights);
-    setMaxDistanceMin(session.maxDistanceMin);
+    setMaxDistanceKm(session.maxDistanceKm);
+    setSelectedCuisines(session.selectedCuisines);
+    setDraftCuisines(session.selectedCuisines);
     setHasHydrated(true);
   }, []);
 
   useEffect(() => {
     if (hasHydrated) {
-      void loadDeck(maxDistanceMin);
+      void loadDeck(maxDistanceKm, selectedCuisines);
     }
-  }, [hasHydrated, loadDeck, maxDistanceMin]);
+  }, [hasHydrated, loadDeck, maxDistanceKm, selectedCuisines]);
 
   useEffect(() => {
     if (hasHydrated) {
@@ -311,7 +387,14 @@ export function SwipeDeck() {
 
       setHistory((current) => [
         ...current,
-        { cards, seenClipIds, savedCards, weights, maxDistanceMin }
+        {
+          cards,
+          seenClipIds,
+          savedCards,
+          weights,
+          maxDistanceKm,
+          selectedCuisines
+        }
       ]);
       setIsSwiping(true);
       setDrag({
@@ -336,7 +419,8 @@ export function SwipeDeck() {
             action,
             weights,
             seenClipIds,
-            maxDistanceMin
+            maxDistanceKm,
+            cuisines: selectedCuisines
           })
         });
 
@@ -370,11 +454,12 @@ export function SwipeDeck() {
       activeCard,
       cards,
       isSwiping,
-      maxDistanceMin,
+      maxDistanceKm,
       persist,
       resetDrag,
       savedCards,
       seenClipIds,
+      selectedCuisines,
       weights
     ]
   );
@@ -403,15 +488,50 @@ export function SwipeDeck() {
     setSeenClipIds(previous.seenClipIds);
     setSavedCards(previous.savedCards);
     setWeights(previous.weights);
-    setMaxDistanceMin(previous.maxDistanceMin);
+    setMaxDistanceKm(previous.maxDistanceKm);
+    setSelectedCuisines(previous.selectedCuisines);
+    setDraftCuisines(previous.selectedCuisines);
     setHistory((current) => current.slice(0, -1));
     writeSession(previous);
   };
 
   const updateDistance = (value: number) => {
-    setMaxDistanceMin(value);
+    setMaxDistanceKm(value);
     setHistory([]);
-    persist({ maxDistanceMin: value });
+    persist({ maxDistanceKm: value });
+  };
+
+  const openCuisineDrawer = () => {
+    setDraftCuisines(selectedCuisines);
+    setCuisineOpen(true);
+  };
+
+  const toggleDraftCuisine = (cuisine: CuisineTag) => {
+    setDraftCuisines((current) =>
+      current.includes(cuisine)
+        ? current.filter((item) => item !== cuisine)
+        : [...current, cuisine],
+    );
+  };
+
+  const clearCuisineFilters = () => {
+    setDraftCuisines([]);
+    setSelectedCuisines([]);
+    setSeenClipIds([]);
+    setHistory([]);
+    setCards([]);
+    persist({ selectedCuisines: [], seenClipIds: [] });
+  };
+
+  const clearDraftCuisines = () => setDraftCuisines([]);
+
+  const applyCuisineFilters = () => {
+    setSelectedCuisines(draftCuisines);
+    setSeenClipIds([]);
+    setHistory([]);
+    setCards([]);
+    persist({ selectedCuisines: draftCuisines, seenClipIds: [] });
+    setCuisineOpen(false);
   };
 
   const scrollToDetails = () => {
@@ -438,7 +558,6 @@ export function SwipeDeck() {
               </h1>
               <i aria-hidden="true" />
             </div>
-            <p>trending hawker + makan spots, vetted for real hype lah</p>
           </div>
           <button
             className="icon-button"
@@ -454,18 +573,38 @@ export function SwipeDeck() {
 
         <div className="filter-bar">
           <div className="filter-copy">
-            <label htmlFor="distance">How far you willing</label>
-            <span>{maxDistanceMin} min</span>
+            <label htmlFor="distance">Distance</label>
+            <span className="range-value">up to {maxDistanceKm} km</span>
           </div>
           <input
             id="distance"
             type="range"
-            min="5"
-            max="45"
-            step="5"
-            value={maxDistanceMin}
+            min={MIN_DISTANCE_KM}
+            max={MAX_DISTANCE_KM}
+            step="1"
+            value={maxDistanceKm}
+            aria-valuetext={`Up to ${maxDistanceKm} kilometers away`}
+            style={{
+              background: `linear-gradient(90deg, var(--pandan) 0%, var(--pandan) ${distanceProgress}%, rgba(22, 19, 15, 0.14) ${distanceProgress}%, rgba(22, 19, 15, 0.14) 100%)`
+            }}
             onChange={(event) => updateDistance(Number(event.target.value))}
           />
+          <div className="filter-actions">
+            <button
+              className={`filter-pill ${selectedCuisines.length ? "active" : ""}`}
+              type="button"
+              aria-label={`Open cuisine filters. ${cuisineSummary} selected.`}
+              onClick={openCuisineDrawer}
+            >
+              <SlidersHorizontal size={15} />
+              <span>
+                {selectedCuisines.length
+                  ? `Cuisine · ${selectedCuisines.length}`
+                  : "Cuisine"}
+              </span>
+            </button>
+            <p>{cuisineSummary}</p>
+          </div>
         </div>
 
         <section className="deck-area" aria-live="polite">
@@ -510,9 +649,26 @@ export function SwipeDeck() {
             </>
           ) : (
             <div className="state-panel">
-              <Flame size={26} />
-              <strong>Deck finished</strong>
-              <span>Open your shortlist and pick dinner.</span>
+              {selectedCuisines.length ? (
+                <>
+                  <SlidersHorizontal size={26} />
+                  <strong>No bites in this cuisine</strong>
+                  <span>Clear the filter or try a wider nearby range.</span>
+                  <button
+                    className="state-action"
+                    type="button"
+                    onClick={clearCuisineFilters}
+                  >
+                    Show all
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Flame size={26} />
+                  <strong>Deck finished</strong>
+                  <span>Open your shortlist and pick dinner.</span>
+                </>
+              )}
             </div>
           )}
         </section>
@@ -572,6 +728,14 @@ export function SwipeDeck() {
         open={shortlistOpen}
         onClose={() => setShortlistOpen(false)}
       />
+      <CuisineSheet
+        draftCuisines={draftCuisines}
+        open={cuisineOpen}
+        onApply={applyCuisineFilters}
+        onClear={clearDraftCuisines}
+        onClose={() => setCuisineOpen(false)}
+        onToggle={toggleDraftCuisine}
+      />
     </main>
   );
 }
@@ -585,7 +749,6 @@ function FoodCard({
   isActive?: boolean;
   stackLevel?: 0 | 1 | 2;
 }) {
-  const creatorCount = card.creators.length;
   const price = priceLabel(card.place.priceLevel);
   const isPreview = stackLevel > 0;
 
@@ -621,12 +784,8 @@ function FoodCard({
       <section className="card-front">
         <div className="metric-row">
           <span>
-            <Users size={15} />
-            {creatorCount} creator{creatorCount === 1 ? "" : "s"}
-          </span>
-          <span>
-            <Clock3 size={15} />
-            {card.place.distanceMinutes} min
+            <MapPin size={15} />
+            {card.place.distanceKm.toFixed(1)} km
           </span>
         </div>
 
@@ -653,6 +812,87 @@ function FoodCard({
   );
 }
 
+function CuisineSheet({
+  draftCuisines,
+  open,
+  onApply,
+  onClear,
+  onClose,
+  onToggle
+}: {
+  draftCuisines: CuisineTag[];
+  open: boolean;
+  onApply: () => void;
+  onClear: () => void;
+  onClose: () => void;
+  onToggle: (cuisine: CuisineTag) => void;
+}) {
+  return (
+    <aside className={`filter-drawer ${open ? "open" : ""}`} aria-hidden={!open}>
+      <button
+        className="scrim"
+        type="button"
+        aria-label="Close cuisine filters"
+        onClick={onClose}
+      />
+      <section className="filter-sheet" aria-label="Cuisine filters">
+        <header>
+          <div>
+            <p className="eyebrow">Filters</p>
+            <h2>Cuisine</h2>
+          </div>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Close cuisine filters"
+            title="Close"
+            onClick={onClose}
+          >
+            <X size={20} />
+          </button>
+        </header>
+
+        <div className="cuisine-grid" aria-label="Cuisine options">
+          <button
+            className={`cuisine-chip ${draftCuisines.length ? "" : "active"}`}
+            type="button"
+            aria-pressed={!draftCuisines.length}
+            onClick={onClear}
+          >
+            {!draftCuisines.length ? <Check size={15} /> : null}
+            All
+          </button>
+          {CUISINE_TAGS.map((cuisine) => {
+            const selected = draftCuisines.includes(cuisine);
+
+            return (
+              <button
+                className={`cuisine-chip ${selected ? "active" : ""}`}
+                key={cuisine}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => onToggle(cuisine)}
+              >
+                {selected ? <Check size={15} /> : null}
+                {cuisineLabels[cuisine]}
+              </button>
+            );
+          })}
+        </div>
+
+        <footer className="filter-sheet-actions">
+          <button className="sheet-button secondary" type="button" onClick={onClear}>
+            Clear
+          </button>
+          <button className="sheet-button primary" type="button" onClick={onApply}>
+            Apply
+          </button>
+        </footer>
+      </section>
+    </aside>
+  );
+}
+
 function PreferencePeek({
   entries,
   swipeCount
@@ -673,7 +913,7 @@ function PreferencePeek({
       <div className="peek-bars">
         {entries.length ? (
           entries.map(([tag, score]) => {
-            const width = `${(Math.abs(score) / max) * 100}%`;
+            const scale = Math.abs(score) / max;
             const positive = score > 0;
 
             return (
@@ -682,7 +922,7 @@ function PreferencePeek({
                 <span className="bar-track">
                   <span
                     className={positive ? "bar-fill good" : "bar-fill nope"}
-                    style={{ width }}
+                    style={{ transform: `scaleX(${scale})` }}
                   />
                 </span>
                 <span className={positive ? "bar-value good" : "bar-value nope"}>
@@ -794,7 +1034,7 @@ function Shortlist({
                   <h3>{card.clip.dishName}</h3>
                   <p>{card.place.name}</p>
                   <span>
-                    {card.place.distanceMinutes} min
+                    {card.place.distanceKm.toFixed(1)} km
                     {card.place.googleRating
                       ? ` · ${card.place.googleRating.toFixed(1)} stars`
                       : ""}

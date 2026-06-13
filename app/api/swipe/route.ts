@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { findClip, getDeckCards } from "@/lib/deck";
 import { updateTasteWeights } from "@/lib/ranking";
-import type { SwipeRequest } from "@/lib/types";
+import { CUISINE_TAGS, type CuisineTag, type SwipeRequest } from "@/lib/types";
+
+const cuisineSet = new Set<string>(CUISINE_TAGS);
 
 function parseDistance(value: unknown): number {
   const distance = Number(value);
   if (!Number.isFinite(distance)) {
-    return 30;
+    return 10;
   }
 
-  return Math.min(45, Math.max(5, distance));
+  return Math.min(15, Math.max(1, distance));
 }
 
 function normalizeSeenClipIds(value: unknown, clipId: string): string[] {
@@ -18,6 +20,24 @@ function normalizeSeenClipIds(value: unknown, clipId: string): string[] {
     : [];
 
   return Array.from(new Set([...seen, clipId]));
+}
+
+function normalizeCuisines(value: unknown): CuisineTag[] {
+  const rawItems =
+    typeof value === "string"
+      ? value.split(",")
+      : Array.isArray(value)
+        ? value
+        : [];
+
+  return Array.from(
+    new Set(
+      rawItems
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim().toLowerCase())
+        .filter((item): item is CuisineTag => cuisineSet.has(item)),
+    ),
+  );
 }
 
 export async function POST(request: Request) {
@@ -43,10 +63,11 @@ export async function POST(request: Request) {
 
   const weights = updateTasteWeights(body.weights ?? {}, clip, body.action);
   const seenClipIds = normalizeSeenClipIds(body.seenClipIds, clip.clipId);
-  const maxDistanceMin = parseDistance(body.maxDistanceMin);
+  const maxDistanceKm = parseDistance(body.maxDistanceKm);
+  const cuisines = normalizeCuisines(body.cuisines);
 
   return NextResponse.json({
     weights,
-    cards: getDeckCards(maxDistanceMin, weights, seenClipIds),
+    cards: getDeckCards(maxDistanceKm, weights, seenClipIds, cuisines),
   });
 }
